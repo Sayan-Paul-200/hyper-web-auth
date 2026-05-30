@@ -165,7 +165,9 @@ class HWA_Settings {
 			$key = str_replace( 'hwa_', '', $id );
 
 			// WooCommerce POSTs the fields by their native ID.
-			if ( isset( $_POST[ $id ] ) ) {
+			if ( 'checkbox' === $field['type'] ) {
+				$settings[ $key ] = isset( $_POST[ $id ] ) ? 'yes' : 'no';
+			} elseif ( isset( $_POST[ $id ] ) ) {
 				$val = wp_unslash( $_POST[ $id ] );
 				// Basic sanitization based on type.
 				if ( 'text' === $field['type'] || 'password' === $field['type'] ) {
@@ -173,9 +175,6 @@ class HWA_Settings {
 				} else {
 					$settings[ $key ] = wc_clean( $val );
 				}
-			} elseif ( 'checkbox' === $field['type'] ) {
-				// Unchecked checkboxes are not POSTed.
-				$settings[ $key ] = 'no';
 			}
 		}
 
