@@ -23,13 +23,17 @@
 class Hyper_Web_Auth_Activator {
 
 	/**
-	 * Short Description. (use period)
-	 *
-	 * Long Description.
+	 * Fired when the plugin is activated.
 	 *
 	 * @since    1.0.0
 	 */
 	public static function activate() {
+
+		/**
+		 * Creates or updates custom database tables using dbDelta.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-database.php';
+		HWA_Database::create_tables();
 
 	}
 

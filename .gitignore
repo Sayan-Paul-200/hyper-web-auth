@@ -1,0 +1,43 @@
+# =============================================================================
+# Hyper Web Auth — .gitignore
+# =============================================================================
+
+# ----- Composer dependencies -----
+/vendor/
+
+# ----- IDE / Editor files -----
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ----- OS files -----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ----- WordPress / Local environment -----
+wp-config.php
+*.log
+debug.log
+error_log
+
+# ----- Firebase / Secrets -----
+# Never commit service-account credentials
+*-service-account*.json
+firebase-adminsdk*.json
+*.pem
+*.p12
+
+# ----- Build artifacts -----
+node_modules/
+*.zip
+*.tar.gz
+
+# ----- PHP / Testing -----
+.phpunit.result.cache
+phpunit.xml
+coverage/

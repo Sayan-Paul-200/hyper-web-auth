@@ -58,6 +58,15 @@ class Hyper_Web_Auth {
 	protected $version;
 
 	/**
+	 * The settings functionality of the plugin.
+	 *
+	 * @since    1.0.0
+	 * @access   protected
+	 * @var      HWA_Settings    $settings    The settings instance.
+	 */
+	protected $settings;
+
+	/**
 	 * Define the core functionality of the plugin.
 	 *
 	 * Set the plugin name and the plugin version that can be used throughout the plugin.
@@ -103,26 +112,37 @@ class Hyper_Web_Auth {
 		 * The class responsible for orchestrating the actions and filters of the
 		 * core plugin.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-hyper-web-auth-loader.php';
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hyper-web-auth-loader.php';
 
 		/**
 		 * The class responsible for defining internationalization functionality
 		 * of the plugin.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-hyper-web-auth-i18n.php';
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hyper-web-auth-i18n.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the admin area.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-hyper-web-auth-admin.php';
+		require_once HYPER_WEB_AUTH_PATH . 'admin/class-hyper-web-auth-admin.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the public-facing
 		 * side of the site.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-hyper-web-auth-public.php';
+		require_once HYPER_WEB_AUTH_PATH . 'public/class-hyper-web-auth-public.php';
+
+		/**
+		 * The class responsible for cryptographic utilities and security.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-security.php';
+
+		/**
+		 * The class responsible for handling the plugin settings via WooCommerce.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-settings.php';
 
 		$this->loader = new Hyper_Web_Auth_Loader();
+		$this->settings = new HWA_Settings();
 
 	}
 

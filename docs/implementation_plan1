@@ -1,0 +1,401 @@
+# Hyper Web Auth — Scaffold Analysis & Implementation Plan
+
+---
+
+## 1. Current Scaffold Analysis
+
+### 1.1 File Inventory & Purpose
+
+The codebase is a **clean WordPress Plugin Boilerplate** scaffold. Every file is boilerplate — no authentication, database, REST, or WooCommerce logic exists yet.
+
+| File | Lines | Current Purpose | Status |
+|---|---|---|---|
+| [hyper-web-auth.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/hyper-web-auth.php) | 83 | Plugin bootstrap: metadata, version constant, activation/deactivation hooks, loads orchestrator, calls `run()` | ⚠️ Missing path/URL/basename constants |
+| [includes/class-hyper-web-auth.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/includes/class-hyper-web-auth.php) | 219 | Orchestrator: loads loader, i18n, admin, public classes; registers enqueue hooks | ⚠️ No domain classes loaded yet |
+| [includes/class-hyper-web-auth-loader.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/includes/class-hyper-web-auth-loader.php) | 130 | Hook registry utility — stores actions/filters, registers on `run()` | ✅ Keep as-is |
+| [includes/class-hyper-web-auth-activator.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/includes/class-hyper-web-auth-activator.php) | 37 | Empty `activate()` static method | ⚠️ Needs DB creation, rewrite flush |
+| [includes/class-hyper-web-auth-deactivator.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/includes/class-hyper-web-auth-deactivator.php) | 37 | Empty `deactivate()` static method | ⚠️ Needs rewrite flush, cron cleanup |
+| [includes/class-hyper-web-auth-i18n.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/includes/class-hyper-web-auth-i18n.php) | 48 | Loads text domain `hyper-web-auth` | ✅ Keep as-is |
+| [admin/class-hyper-web-auth-admin.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/admin/class-hyper-web-auth-admin.php) | 104 | Enqueues admin CSS/JS globally (no page scoping) | ⚠️ Needs settings page, scoped enqueue |
+| [admin/partials/hyper-web-auth-admin-display.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/admin/partials/hyper-web-auth-admin-display.php) | 17 | Empty HTML placeholder | ⚠️ Needs settings UI |
+| [public/class-hyper-web-auth-public.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/public/class-hyper-web-auth-public.php) | 104 | Enqueues public CSS/JS globally | ⚠️ Needs WooCommerce form hooks, scoped enqueue |
+| [public/partials/hyper-web-auth-public-display.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/public/partials/hyper-web-auth-public-display.php) | 17 | Empty HTML placeholder | ⚠️ Will be replaced by specific partials |
+| [public/js/hyper-web-auth-public.js](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/public/js/hyper-web-auth-public.js) | 33 | Empty jQuery IIFE | ⚠️ Needs OTP & linking JS |
+| [public/css/hyper-web-auth-public.css](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/public/css/hyper-web-auth-public.css) | 4 | Empty comment | ⚠️ Needs button/form styles |
+| [admin/js/hyper-web-auth-admin.js](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/admin/js/hyper-web-auth-admin.js) | 33 | Empty jQuery IIFE | ⚠️ May need settings page JS |
+| [admin/css/hyper-web-auth-admin.css](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/admin/css/hyper-web-auth-admin.css) | 4 | Empty comment | ⚠️ Needs settings page styles |
+| [uninstall.php](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/uninstall.php) | 32 | `WP_UNINSTALL_PLUGIN` guard only | ⚠️ Needs conditional data cleanup |
+| [README.txt](file:///d:/Z_Work/Sayan/acordell.com/hyper-web-auth/README.txt) | 114 | Generic boilerplate content | ⚠️ Needs real plugin metadata |
+| `languages/hyper-web-auth.pot` | — | Empty POT file | ✅ Will be regenerated |
+| `index.php` (root + dirs) | 1 | Silence-is-golden guards | ✅ Keep as-is |
+
+### 1.2 Key Observations
+
+1. **Pure boilerplate** — zero business logic, zero database, zero REST routes, zero WooCommerce integration.
+2. **No Composer** — `composer.json` and `vendor/` are absent. Required for `google/apiclient`.
+3. **Global asset loading** — both admin and public enqueue CSS/JS on every page. Must be scoped.
+4. **No `.gitignore`** — `.git/` is present but no ignore file for vendor, IDE files, etc.
+5. **Missing constants** — only `HYPER_WEB_AUTH_VERSION` exists; `_FILE`, `_PATH`, `_URL`, `_BASENAME` are missing.
+6. **No WooCommerce dependency check** — plugin would load even without WooCommerce active.
+
+---
+
+## 2. Gap Analysis — What's Missing
+
+### 2.1 New Files Required
+
+```text
+# Foundation (Phase 0)
+includes/class-hwa-database.php              ← DB table creation via dbDelta
+includes/class-hwa-settings.php              ← Settings page + option management
+includes/class-hwa-security.php              ← HMAC hashing, phone normalization, IP helpers
+includes/class-hwa-audit-logger.php          ← Event logging to hwa_auth_logs
+composer.json                                ← Dependency management
+.gitignore                                   ← Exclude vendor, .git in builds
+
+# Google OAuth (Phase 1)
+includes/class-hwa-identity-repository.php   ← CRUD for hwa_identities table
+includes/class-hwa-oauth-state-repository.php← CRUD for hwa_oauth_states table
+includes/class-hwa-google-oauth-service.php  ← Auth URL, code exchange, ID token validation
+includes/class-hwa-customer-service.php      ← WooCommerce customer find/create/login
+rest/class-hwa-rest-controller.php           ← REST route registration + handlers
+public/partials/google-button.php            ← "Continue with Google" button template
+
+# Phone OTP (Phase 2)
+includes/class-hwa-otp-repository.php        ← CRUD for hwa_otp_challenges table
+includes/class-hwa-otp-service.php           ← OTP generate, hash, verify, rate-limit
+includes/class-hwa-sms-provider.php          ← SMS gateway abstraction
+includes/class-hwa-rate-limiter.php          ← Per-phone + per-IP rate limiting
+public/partials/phone-login-form.php         ← Phone login UI
+public/partials/phone-register-form.php      ← Phone registration UI
+public/partials/otp-verify-form.php          ← OTP entry panel
+
+# Account Linking (Phase 3)
+public/class-hwa-my-account.php              ← WooCommerce My Account endpoint
+public/partials/account-login-methods.php    ← Login Methods page template
+```
+
+### 2.2 Existing Files Requiring Modification
+
+| File | Changes Needed |
+|---|---|
+| `hyper-web-auth.php` | Add constants, WooCommerce check, Composer autoload |
+| `includes/class-hyper-web-auth.php` | Load all new domain classes, register REST/WooCommerce/settings hooks |
+| `includes/class-hyper-web-auth-activator.php` | Call `HWA_Database::create_tables()`, flush rewrites |
+| `includes/class-hyper-web-auth-deactivator.php` | Flush rewrites, unschedule crons |
+| `admin/class-hyper-web-auth-admin.php` | Register settings page, scope enqueue to plugin pages |
+| `admin/partials/hyper-web-auth-admin-display.php` | Settings UI with tabs (Google, Phone, Security) |
+| `public/class-hyper-web-auth-public.php` | Hook into WooCommerce forms, scope enqueue, localize REST URLs |
+| `public/js/hyper-web-auth-public.js` | OTP request/verify flows, account-linking UI |
+| `public/css/hyper-web-auth-public.css` | Google button, OTP form, login-methods page styles |
+| `uninstall.php` | Conditional table/option deletion |
+| `README.txt` | Real plugin metadata and setup instructions |
+
+### 2.3 Database Tables Required
+
+| Table | Phase | Purpose |
+|---|---|---|
+| `{prefix}hwa_identities` | 0/1 | Maps provider identities (Google sub, phone) → WP user_id |
+| `{prefix}hwa_oauth_states` | 0/1 | Single-use OAuth state tokens with expiry |
+| `{prefix}hwa_auth_logs` | 0/1 | Audit log for auth events (no secrets) |
+| `{prefix}hwa_otp_challenges` | 2 | OTP challenges with hashed OTP, expiry, attempt tracking |
+
+---
+
+## 3. Target Architecture
+
+### 3.1 Domain Model
+
+```mermaid
+erDiagram
+    WP_USER ||--o{ HWA_IDENTITY : "has 0..N"
+    HWA_IDENTITY {
+        bigint id PK
+        bigint user_id FK
+        varchar provider "google | phone"
+        char identity_hash UK "HMAC-SHA256"
+        varchar identity_display
+        varchar email
+        varchar phone_e164
+        bool is_verified
+        varchar status
+        datetime linked_at
+        datetime last_login_at
+    }
+    HWA_OAUTH_STATE {
+        bigint id PK
+        char state_hash UK
+        varchar provider
+        varchar context "login | register | link_google"
+        text return_to
+        bigint user_id
+        varchar status "pending | consumed | expired"
+        datetime expires_at
+    }
+    HWA_OTP_CHALLENGE {
+        bigint id PK
+        varchar context "login | register | link_phone"
+        varchar phone_e164
+        char phone_hash
+        varchar otp_hash "bcrypt"
+        tinyint attempts
+        tinyint resend_count
+        varchar status "pending | verified | failed | expired"
+        datetime expires_at
+    }
+```
+
+### 3.2 Target File Structure
+
+```text
+hyper-web-auth/
+├── hyper-web-auth.php           (bootstrap + constants)
+├── composer.json                [NEW]
+├── vendor/                      [NEW - gitignored]
+├── .gitignore                   [NEW]
+├── uninstall.php                (conditional cleanup)
+├── admin/
+│   ├── class-hyper-web-auth-admin.php  (settings page + scoped enqueue)
+│   ├── partials/hyper-web-auth-admin-display.php  (tabbed settings UI)
+│   ├── css/  │  └── js/
+├── includes/
+│   ├── class-hyper-web-auth.php        (orchestrator)
+│   ├── class-hyper-web-auth-loader.php (unchanged)
+│   ├── class-hyper-web-auth-activator.php
+│   ├── class-hyper-web-auth-deactivator.php
+│   ├── class-hyper-web-auth-i18n.php   (unchanged)
+│   ├── class-hwa-database.php          [NEW]
+│   ├── class-hwa-settings.php          [NEW]
+│   ├── class-hwa-security.php          [NEW]
+│   ├── class-hwa-identity-repository.php    [NEW]
+│   ├── class-hwa-oauth-state-repository.php [NEW]
+│   ├── class-hwa-google-oauth-service.php   [NEW]
+│   ├── class-hwa-customer-service.php       [NEW]
+│   ├── class-hwa-audit-logger.php           [NEW]
+│   ├── class-hwa-otp-repository.php         [NEW]
+│   ├── class-hwa-otp-service.php            [NEW]
+│   ├── class-hwa-sms-provider.php           [NEW]
+│   └── class-hwa-rate-limiter.php           [NEW]
+├── rest/
+│   └── class-hwa-rest-controller.php        [NEW]
+├── public/
+│   ├── class-hyper-web-auth-public.php
+│   ├── class-hwa-my-account.php             [NEW]
+│   ├── partials/
+│   │   ├── google-button.php                [NEW]
+│   │   ├── phone-login-form.php             [NEW]
+│   │   ├── phone-register-form.php          [NEW]
+│   │   ├── otp-verify-form.php              [NEW]
+│   │   └── account-login-methods.php        [NEW]
+│   ├── css/  │  └── js/
+└── languages/
+```
+
+### 3.3 REST API Surface
+
+| Phase | Method | Route | Auth |
+|---|---|---|---|
+| 1 | GET | `/hyper-web-auth/v1/google/start` | Public |
+| 1 | GET | `/hyper-web-auth/v1/google/callback` | Public (state-validated) |
+| 2 | POST | `/hyper-web-auth/v1/phone/login/request` | Public |
+| 2 | POST | `/hyper-web-auth/v1/phone/login/verify` | Public |
+| 2 | POST | `/hyper-web-auth/v1/phone/register/request` | Public |
+| 2 | POST | `/hyper-web-auth/v1/phone/register/verify` | Public |
+| 3 | POST | `/hyper-web-auth/v1/phone/link/request` | Logged-in |
+| 3 | POST | `/hyper-web-auth/v1/phone/link/verify` | Logged-in |
+| 3 | GET | `/hyper-web-auth/v1/google/start?context=link_google` | Logged-in |
+
+---
+
+## 4. Phased Implementation Roadmap
+
+### Phase 0 — Scaffold Hardening & Foundation
+
+> **Goal**: Prepare the scaffold for safe feature development. No user-facing auth behavior.
+
+| Step | Task | Files | Acceptance Criteria |
+|---|---|---|---|
+| 0.1 | Add `.gitignore`, update `README.txt` metadata | `.gitignore`, `README.txt` | Clean repo, no boilerplate text |
+| 0.2 | Add plugin constants (`_FILE`, `_PATH`, `_URL`, `_BASENAME`) | `hyper-web-auth.php` | Plugin activates, existing enqueues work |
+| 0.3 | Add WooCommerce dependency check | `hyper-web-auth.php` or orchestrator | Admin notice if WooC inactive, no fatal |
+| 0.4 | Create `HWA_Settings` class + admin page skeleton | `class-hwa-settings.php`, admin class, admin partial | Settings page renders, `hwa_settings` option saves/sanitizes |
+| 0.5 | Create `HWA_Database` class with `dbDelta()` | `class-hwa-database.php`, activator | Tables created on activation, version stored, re-activation safe |
+| 0.6 | Create `HWA_Security` helpers | `class-hwa-security.php` | Deterministic HMAC hashing, redirect allowlisting |
+| 0.7 | Create `HWA_Audit_Logger` | `class-hwa-audit-logger.php` | Events written to `hwa_auth_logs`, no secrets logged |
+
+**Estimated complexity**: Low-medium. ~7 focused patches.
+
+---
+
+### Phase 1 — Google OAuth / OpenID Connect
+
+> **Goal**: Production-ready Google login/registration before any OTP work begins.
+
+| Step | Task | Key Files |
+|---|---|---|
+| 1.1 | Add `composer.json`, install `google/apiclient` | `composer.json`, vendor autoload in bootstrap |
+| 1.2 | Add Google OAuth settings fields | `class-hwa-settings.php`, admin partial |
+| 1.3 | Create `HWA_Identity_Repository` (Google methods) | `class-hwa-identity-repository.php` |
+| 1.4 | Create `HWA_OAuth_State_Repository` | `class-hwa-oauth-state-repository.php` |
+| 1.5 | Create `HWA_Google_OAuth_Service` | `class-hwa-google-oauth-service.php` |
+| 1.6 | Create `HWA_Customer_Service` | `class-hwa-customer-service.php` |
+| 1.7 | Create `HWA_REST_Controller` (Google routes) | `rest/class-hwa-rest-controller.php` |
+| 1.8 | Add Google button UI to WooCommerce forms | `public/` class + `google-button.php` partial + CSS |
+| 1.9 | Wire orchestrator to load all Phase 1 classes | `class-hyper-web-auth.php` |
+| 1.10 | Production hardening: error handling, audit logs, safe redirects | All Phase 1 files |
+
+**Google Flow Rules** (must implement exactly):
+
+| Case | Condition | Action |
+|---|---|---|
+| A | Google `sub` already in `hwa_identities` | Login linked user |
+| B | `sub` unlinked + `email_verified=true` + email matches one WP user + setting enabled | Link identity → login |
+| C | `sub` unlinked + no matching user + auto-create enabled | Create WooCommerce customer → link → login |
+| D | `sub` unlinked + auto-create disabled | Redirect with error |
+| E | Logged-in user + `context=link_google` | Link to current user (if not already linked elsewhere) |
+
+**Estimated complexity**: High. ~10 patches. Requires Google Cloud Console setup for testing.
+
+---
+
+### Phase 2 — Phone SMS OTP Authentication
+
+> **Prerequisite**: Phase 1 must be production-stable.
+
+| Step | Task | Key Files |
+|---|---|---|
+| 2.1 | Add `hwa_otp_challenges` table, bump DB version | `class-hwa-database.php` |
+| 2.2 | Add phone normalization to `HWA_Security` | `class-hwa-security.php` |
+| 2.3 | Create `HWA_SMS_Provider` abstraction | `class-hwa-sms-provider.php` |
+| 2.4 | Create `HWA_OTP_Repository` | `class-hwa-otp-repository.php` |
+| 2.5 | Create `HWA_OTP_Service` | `class-hwa-otp-service.php` |
+| 2.6 | Create `HWA_Rate_Limiter` | `class-hwa-rate-limiter.php` |
+| 2.7 | Add phone methods to `HWA_Identity_Repository` | `class-hwa-identity-repository.php` |
+| 2.8 | Add phone login REST routes | `class-hwa-rest-controller.php` |
+| 2.9 | Add phone registration REST routes | `class-hwa-rest-controller.php` |
+| 2.10 | Create phone UI partials + JS | Partials + `hyper-web-auth-public.js` + CSS |
+| 2.11 | Add phone OTP settings fields | `class-hwa-settings.php` |
+| 2.12 | Production hardening: SMS failure handling, cron cleanup, rate-limit messages | All Phase 2 files |
+
+**Phone Flow Rules** (must implement exactly):
+
+| Flow | Condition | Action |
+|---|---|---|
+| Login | Phone exists + verified | Send OTP → verify → login |
+| Login | Phone not found | Return `phone_not_found` + *"Please sign up"* |
+| Register | Phone not found | Send OTP → verify → create customer → link → login |
+| Register | Phone exists | Return `phone_exists` + *"Please login"* |
+
+> [!IMPORTANT]
+> Login endpoint must **never** create users. Registration endpoint must **never** directly login existing phone users.
+
+**Estimated complexity**: High. ~12 patches. Requires SMS provider credentials.
+
+---
+
+### Phase 3 — Account Linking & Unified Identity Management
+
+> **Prerequisite**: Both Google and Phone work independently.
+
+| Step | Task | Key Files |
+|---|---|---|
+| 3.1 | Create `HWA_My_Account` class + endpoint registration | `class-hwa-my-account.php` |
+| 3.2 | Create Login Methods page UI | `account-login-methods.php` |
+| 3.3 | Implement "Link Google" for phone-registered users | Reuses Google OAuth flow with `context=link_google` |
+| 3.4 | Implement "Link Phone" for Google-registered users | New REST routes + OTP flow |
+| 3.5 | Implement combined conflict rules | All identity/customer service files |
+| 3.6 | Optional: unlinking with lockout prevention | My Account page |
+| 3.7 | Optional: checkout integration | Public class + WooCommerce checkout hooks |
+
+**Linking Safety Rules**:
+- Identity linked to current user → show "already linked"
+- Identity linked to another user → **block** (no takeover)
+- Identity unlinked → verify ownership → link
+
+**Estimated complexity**: Medium-high. ~7 patches.
+
+---
+
+### Phase 4 — Admin, Observability & Production Ops
+
+| Step | Task |
+|---|---|
+| 4.1 | Admin audit log viewer (filterable, masked) |
+| 4.2 | Admin identity management on user profile page |
+| 4.3 | Cron cleanup for expired states, OTPs, old logs |
+| 4.4 | WordPress privacy data export/erase hooks |
+
+---
+
+## 5. Risk Register
+
+| Risk | Severity | Mitigation |
+|---|---|---|
+| Google client library bloats plugin size (~30MB) | Medium | Consider using HTTP-only token validation instead of full `google/apiclient` SDK |
+| SMS provider API changes or failures | High | Abstraction layer with fallback error handling; admin test SMS button |
+| OAuth state replay attacks | High | Single-use states, 10-min expiry, hash-only storage |
+| OTP brute-force (6-digit = 1M combinations) | High | Max 5 attempts per challenge, per-phone + per-IP rate limiting, bcrypt hashing |
+| Duplicate accounts from race conditions | Medium | Unique DB constraint on `(provider, identity_hash)`; re-check before create |
+| WooCommerce deactivation mid-operation | Medium | Guard all WooC function calls; admin notice when inactive |
+| Cart/session loss during checkout login | Medium | Preserve WooCommerce session cookies across OAuth redirect |
+| Phone normalization inconsistencies | Medium | E.164 strict format; configurable default country code |
+
+---
+
+## 6. Dependencies
+
+| Dependency | Required By | Notes |
+|---|---|---|
+| WordPress ≥ 5.8 | All | REST API, `dbDelta()`, modern hooks |
+| WooCommerce ≥ 7.0 | All | Customer functions, My Account, HPOS compatibility |
+| PHP ≥ 7.4 | All | Typed properties, null coalescing |
+| `google/apiclient` (Composer) | Phase 1 | Or manual HTTP + JWT validation as lighter alternative |
+| SMS API provider credentials | Phase 2 | Custom gateway (URL + API key + template) |
+| Google Cloud Console OAuth credentials | Phase 1 | Client ID + Client Secret |
+| SSL/HTTPS | Phase 1+ | Required by Google OAuth and for secure cookies |
+
+---
+
+## 7. Open Questions
+
+> [!IMPORTANT]
+> Please clarify these before implementation begins:
+
+1. **Google Client Library vs. Lightweight HTTP**: The `google/apiclient` package is ~30MB. Would you prefer the full SDK, or a lightweight approach using `wp_remote_get/post` with manual JWT/ID-token validation? The lightweight approach reduces plugin size dramatically but requires more custom code.
+
+2. **SMS Provider**: Which SMS gateway will be used? The spec mentions a "custom" provider with URL/key/sender/template configuration. Do you have a specific provider in mind (e.g., Twilio, MSG91, Fast2SMS, a custom Indian gateway), or should I build a generic HTTP-based abstraction configurable from admin?
+
+3. **Default Country Code**: For phone normalization — should we default to India (`+91`) or make it admin-configurable? This affects E.164 formatting for numbers entered without country code.
+
+4. **Settings Page Location**: Should the plugin settings page appear under **WooCommerce → Settings** (as a tab), or under **Settings → Hyper Web Auth** (standalone menu), or as a top-level admin menu item?
+
+5. **Email Requirement for Phone Registration**: The spec shows email as a recommended field during phone registration. Should email be **required** or **optional** for phone-only signups? WooCommerce typically requires an email for order notifications.
+
+6. **Google "Match Existing Email" Behavior**: When a new Google user has a verified email matching an existing WP user — should this auto-link silently, or should the customer see a confirmation prompt first? The spec says "link and login if setting enabled" but there's a UX vs. security tradeoff.
+
+7. **Checkout Integration Priority**: Is Phase 3.7 (checkout Google/phone login) a must-have for initial release, or can it be deferred to a post-launch iteration?
+
+8. **PHP Minimum Version**: The scaffold doesn't declare a minimum. Is PHP 7.4 the floor, or should we target PHP 8.0+?
+
+---
+
+## 8. Verification Plan
+
+### Automated
+- Plugin activates/deactivates without errors (WP-CLI or manual)
+- Tables are created correctly on activation (verify via phpMyAdmin / WP-CLI db query)
+- Re-activation doesn't duplicate tables
+- Settings save and sanitize correctly
+
+### Manual Testing (per phase)
+
+**Phase 1**: Google button appears → redirects to Google → callback creates/logins customer → same user logins again → verified email matching works → invalid state rejected → reused state rejected
+
+**Phase 2**: Phone login with known number → OTP sent → correct OTP logins → unknown number shows "sign up" → phone register → OTP → customer created → existing number shows "login" → wrong/expired OTP fails → rate limiting works
+
+**Phase 3**: Phone user links Google → Google user links phone → conflict blocked → My Account shows correct status → unlinking prevention
+
+### Production Staging
+- Test with real Google OAuth credentials on HTTPS staging site
+- Test with real SMS provider credentials
+- Verify no secrets in debug logs or browser network tab

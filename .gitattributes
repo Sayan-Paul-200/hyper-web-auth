@@ -1,0 +1,21 @@
+# =============================================================================
+# Hyper Web Auth — .gitattributes
+# Controls what is excluded from `git archive` / release zip exports.
+# =============================================================================
+
+# ----- Development-only files -----
+/.gitignore          export-ignore
+/.gitattributes      export-ignore
+/docs/               export-ignore
+/tests/              export-ignore
+/phpunit.xml         export-ignore
+/phpunit.xml.dist    export-ignore
+/.phpcs.xml          export-ignore
+/.phpcs.xml.dist     export-ignore
+
+# ----- CI / Tooling -----
+/.github/            export-ignore
+/.editorconfig       export-ignore
+
+# ----- Build / Config -----
+/composer.lock       export-ignore

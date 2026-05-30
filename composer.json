@@ -1,0 +1,20 @@
+{
+    "name": "hyperweblabs/hyper-web-auth",
+    "description": "HyperWeb Customer Authentication for WooCommerce — Google OAuth and Firebase Phone Authentication plugin.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Sayan Paul",
+            "email": "sayanpaul666.ap@gmail.com",
+            "homepage": "https://github.com/Sayan-Paul-200"
+        }
+    ],
+    "require": {
+        "php": ">=8.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

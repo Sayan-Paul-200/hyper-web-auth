@@ -1,114 +1,90 @@
-=== Plugin Name ===
-Contributors: (this should be a list of wordpress.org userid's)
-Donate link: https://github.com/Sayan-Paul-200/
-Tags: comments, spam
-Requires at least: 3.0.1
-Tested up to: 3.4
-Stable tag: 4.3
+=== HyperWeb Customer Authentication for WooCommerce ===
+Contributors: sayanpaul200
+Donate link: https://hyperweblabs.in/
+Tags: woocommerce, authentication, google-login, phone-login, firebase
+Requires at least: 6.0
+Tested up to: 6.8
+Requires PHP: 8.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Here is a short description of the plugin.  This should be no more than 150 characters.  No markup here.
+Secure WooCommerce customer authentication with Google OAuth login and Firebase Phone SMS OTP — plus unified account linking from My Account.
 
 == Description ==
 
-This is the long description.  No limit, and you can use Markdown (as well as in the following sections).
+HyperWeb Customer Authentication for WooCommerce provides secure, modern authentication methods for your WooCommerce customers:
 
-For backwards compatibility, if this section is missing, the full length of the short description will be used, and
-Markdown parsed.
+* **Google OAuth / OpenID Connect** — One-click "Continue with Google" login and registration on WooCommerce My Account forms.
+* **Firebase Phone Authentication** — SMS OTP login and registration powered by Firebase Authentication Phone Number Sign-In.
+* **Account Linking** — Customers can link both Google and phone identities from the My Account > Login Methods page.
+* **Duplicate Prevention** — Identity-level constraints prevent duplicate accounts and unsafe identity hijacking.
+* **Admin Settings** — Configure Google OAuth credentials, Firebase project settings, and security options from WooCommerce > Settings > Hyper Web Auth.
+* **Audit Logging** — Masked, privacy-safe authentication event logging for admin troubleshooting.
 
-A few notes about the sections above:
+= Requirements =
 
-*   "Contributors" is a comma separated list of wp.org/wp-plugins.org usernames
-*   "Tags" is a comma separated list of tags that apply to the plugin
-*   "Requires at least" is the lowest version that the plugin will work on
-*   "Tested up to" is the highest version that you've *successfully used to test the plugin*. Note that it might work on
-higher versions... this is just the highest one you've verified.
-*   Stable tag should indicate the Subversion "tag" of the latest stable version, or "trunk," if you use `/trunk/` for
-stable.
-
-    Note that the `readme.txt` of the stable tag is the one that is considered the defining one for the plugin, so
-if the `/trunk/readme.txt` file says that the stable tag is `4.3`, then it is `/tags/4.3/readme.txt` that'll be used
-for displaying information about the plugin.  In this situation, the only thing considered from the trunk `readme.txt`
-is the stable tag pointer.  Thus, if you develop in trunk, you can update the trunk `readme.txt` to reflect changes in
-your in-development version, without having that information incorrectly disclosed about the current stable version
-that lacks those changes -- as long as the trunk's `readme.txt` points to the correct stable tag.
-
-    If no stable tag is provided, it is assumed that trunk is stable, but you should specify "trunk" if that's where
-you put the stable version, in order to eliminate any doubt.
+* WordPress 6.0 or later
+* WooCommerce 7.0 or later
+* PHP 8.0 or later (8.1+ recommended)
+* HTTPS enabled (required for Google OAuth and Firebase)
+* Google Cloud Console OAuth credentials (for Google login)
+* Firebase project with Phone Authentication enabled (for phone login)
 
 == Installation ==
 
-This section describes how to install the plugin and get it working.
+1. Upload the `hyper-web-auth` folder to `/wp-content/plugins/`.
+2. Activate the plugin through the **Plugins** menu in WordPress.
+3. Navigate to **WooCommerce > Settings > Hyper Web Auth** to configure.
 
-e.g.
+= Google OAuth Setup =
 
-1. Upload `hyper-web-auth.php` to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Place `<?php do_action('plugin_name_hook'); ?>` in your templates
+1. Create a project in the [Google Cloud Console](https://console.cloud.google.com/).
+2. Enable the Google Identity / OAuth 2.0 API.
+3. Create OAuth 2.0 credentials (Web application type).
+4. Copy the Redirect URI from the plugin settings page and add it to your Google OAuth credentials.
+5. Enter the Client ID and Client Secret in the plugin settings.
+
+= Firebase Phone Auth Setup =
+
+1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
+2. Enable Authentication and add the Phone provider.
+3. Add your site domain to Firebase authorized domains.
+4. Create a Web App and copy the Firebase config values to the plugin settings.
+5. Configure the Firebase service-account credential path for backend token verification.
 
 == Frequently Asked Questions ==
 
-= A question that someone might have =
+= Does this plugin require WooCommerce? =
 
-An answer to that question.
+Yes. This plugin extends WooCommerce customer authentication. It will show an admin notice if WooCommerce is not active.
 
-= What about foo bar? =
+= Is HTTPS required? =
 
-Answer to foo bar dilemma.
+Yes. Google OAuth requires HTTPS for redirect URIs, and Firebase Phone Authentication requires a secure origin.
+
+= Can customers use both Google and phone login? =
+
+Yes. Customers can link both identities from My Account > Login Methods after the account-linking feature is enabled.
 
 == Screenshots ==
 
-1. This screen shot description corresponds to screenshot-1.(png|jpg|jpeg|gif). Note that the screenshot is taken from
-the /assets directory or the directory that contains the stable readme.txt (tags or trunk). Screenshots in the /assets
-directory take precedence. For example, `/assets/screenshot-1.png` would win over `/tags/4.3/screenshot-1.png`
-(or jpg, jpeg, gif).
-2. This is the second screen shot
+1. Google "Continue with Google" button on WooCommerce login form.
+2. Firebase Phone Authentication OTP flow on registration form.
+3. My Account > Login Methods page showing linked identities.
+4. WooCommerce > Settings > Hyper Web Auth admin configuration.
 
 == Changelog ==
 
-= 1.0 =
-* A change since the previous version.
-* Another change.
-
-= 0.5 =
-* List versions from most recent at top to oldest at bottom.
+= 1.0.0 =
+* Initial release.
+* Google OAuth / OpenID Connect login and registration.
+* Firebase Phone Authentication login and registration.
+* My Account identity linking.
+* Admin settings under WooCommerce > Settings.
+* Audit logging.
 
 == Upgrade Notice ==
 
-= 1.0 =
-Upgrade notices describe the reason a user should upgrade.  No more than 300 characters.
-
-= 0.5 =
-This version fixes a security related bug.  Upgrade immediately.
-
-== Arbitrary section ==
-
-You may provide arbitrary sections, in the same format as the ones above.  This may be of use for extremely complicated
-plugins where more information needs to be conveyed that doesn't fit into the categories of "description" or
-"installation."  Arbitrary sections will be shown below the built-in sections outlined above.
-
-== A brief Markdown Example ==
-
-Ordered list:
-
-1. Some feature
-1. Another feature
-1. Something else about the plugin
-
-Unordered list:
-
-* something
-* something else
-* third thing
-
-Here's a link to [WordPress](http://wordpress.org/ "Your favorite software") and one to [Markdown's Syntax Documentation][markdown syntax].
-Titles are optional, naturally.
-
-[markdown syntax]: http://daringfireball.net/projects/markdown/syntax
-            "Markdown is what the parser uses to process much of the readme file"
-
-Markdown uses email style notation for blockquotes and I've been told:
-> Asterisks for *emphasis*. Double it up  for **strong**.
-
-`<?php code(); // goes in backticks ?>`
+= 1.0.0 =
+Initial release.
