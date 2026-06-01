@@ -284,7 +284,6 @@ class HWA_Settings {
 			),
 		);
 	}
-	}
 
 	/**
 	 * Display admin notices if Google is enabled but credentials are missing.
