@@ -284,5 +284,33 @@ class HWA_Settings {
 			),
 		);
 	}
+	}
+
+	/**
+	 * Display admin notices if Google is enabled but credentials are missing.
+	 *
+	 * @since 1.0.0
+	 */
+	public function admin_notices() {
+		if ( 'yes' !== self::get_setting( 'google_enabled' ) ) {
+			return;
+		}
+
+		$client_id = self::get_setting( 'google_client_id' );
+		$secret    = self::get_setting( 'google_client_secret' );
+
+		if ( empty( $client_id ) || empty( $secret ) ) {
+			$settings_url = admin_url( 'admin.php?page=wc-settings&tab=hyper_web_auth' );
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p>
+					<strong><?php esc_html_e( 'Hyper Web Auth Configuration Error:', 'hyper-web-auth' ); ?></strong>
+					<?php esc_html_e( 'Google Login is enabled, but the Client ID or Client Secret is missing. Google Login will not work on the frontend.', 'hyper-web-auth' ); ?>
+					<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Configure Settings', 'hyper-web-auth' ); ?></a>
+				</p>
+			</div>
+			<?php
+		}
+	}
 
 }

@@ -35,6 +35,11 @@ class Hyper_Web_Auth_Activator {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-database.php';
 		HWA_Database::create_tables();
 
+		// Schedule hourly cleanup for OAuth states.
+		if ( ! wp_next_scheduled( 'hwa_hourly_cleanup' ) ) {
+			wp_schedule_event( time(), 'hourly', 'hwa_hourly_cleanup' );
+		}
+
 	}
 
 }

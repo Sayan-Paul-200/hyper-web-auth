@@ -18,6 +18,9 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  * Cleanup database tables and options on uninstall, but ONLY if the
  * administrator has explicitly enabled the "Delete Data on Uninstall" setting.
  */
+// Clear scheduled cron jobs
+wp_clear_scheduled_hook( 'hwa_hourly_cleanup' );
+
 $settings = get_option( 'hwa_settings', array() );
 
 if ( is_array( $settings ) && isset( $settings['delete_data_on_uninstall'] ) && 'yes' === $settings['delete_data_on_uninstall'] ) {

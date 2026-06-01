@@ -123,4 +123,37 @@ CREATE TABLE {$wpdb->prefix}hwa_auth_logs (
 
 		return $sql;
 	}
+
+	/**
+	 * Logs an authentication event to the database.
+	 *
+	 * @since  1.0.0
+	 * @param  int|null $user_id    The WordPress user ID, or null.
+	 * @param  string   $provider   The auth provider (e.g., 'google').
+	 * @param  string   $event_type The type of event (e.g., 'login_success', 'login_failed').
+	 * @param  string   $status     The status ('success', 'failed').
+	 * @param  string   $ip         The raw IP address (will be hashed before storage).
+	 * @param  string   $message    Optional message or error details.
+	 * @return int|false The number of rows inserted, or false on error.
+	 */
+	public static function log_auth_event( $user_id, $provider, $event_type, $status, $ip, $message = '' ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_auth_logs';
+		$ip_hash    = HWA_Security::hash_ip( $ip );
+
+		$data = array(
+			'user_id'    => $user_id ? (int) $user_id : null,
+			'provider'   => sanitize_key( $provider ),
+			'event_type' => sanitize_key( $event_type ),
+			'status'     => sanitize_key( $status ),
+			'ip_hash'    => $ip_hash,
+			'message'    => sanitize_text_field( $message ),
+			'created_at' => gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) ),
+		);
+
+		$format = array( '%d', '%s', '%s', '%s', '%s', '%s', '%s' );
+
+		return $wpdb->insert( $table_name, $data, $format );
+	}
 }

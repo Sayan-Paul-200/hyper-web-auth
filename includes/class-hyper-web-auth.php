@@ -115,6 +115,7 @@ class Hyper_Web_Auth {
 		$this->set_locale();
 		$this->define_admin_hooks();
 		$this->define_rest_hooks();
+		$this->define_cron_hooks();
 		$this->define_public_hooks();
 
 	}
@@ -228,6 +229,9 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
+		// Admin notices for settings
+		$this->loader->add_action( 'admin_notices', $this->settings, 'admin_notices' );
+
 	}
 
 	/**
@@ -244,6 +248,18 @@ class Hyper_Web_Auth {
 		);
 
 		$this->loader->add_action( 'rest_api_init', $rest_controller, 'register_routes' );
+	}
+
+	/**
+	 * Define hooks for automated background tasks.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function define_cron_hooks() {
+		// Hook our hourly cleanup event to the state repository
+		$state_repo = new HWA_OAuth_State_Repository();
+		$this->loader->add_action( 'hwa_hourly_cleanup', $state_repo, 'cleanup_expired_states' );
 	}
 
 	/**

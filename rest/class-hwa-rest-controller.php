@@ -137,18 +137,22 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		$code  = $request->get_param( 'code' );
 		$state = $request->get_param( 'state' );
 		$error = $request->get_param( 'error' );
+		$ip    = HWA_Security::get_client_ip();
 
 		if ( ! empty( $error ) ) {
+			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Google returned error: ' . $error );
 			return $this->redirect_with_error( __( 'Google login was cancelled or failed.', 'hyper-web-auth' ) );
 		}
 
 		if ( empty( $code ) || empty( $state ) ) {
+			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Missing code or state.' );
 			return $this->redirect_with_error( __( 'Invalid response from Google.', 'hyper-web-auth' ) );
 		}
 
 		$callback_data = $this->google_service->handle_callback( $code, $state );
 
 		if ( is_wp_error( $callback_data ) ) {
+			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $callback_data->get_error_message() );
 			return $this->redirect_with_error( $callback_data->get_error_message() );
 		}
 
@@ -159,11 +163,15 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		$user_id = $this->resolve_user_from_profile( $profile, $state_data );
 
 		if ( is_wp_error( $user_id ) ) {
+			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $user_id->get_error_message() );
 			return $this->redirect_with_error( $user_id->get_error_message() );
 		}
 
 		// Set authentication cookies to log the user in.
 		$this->customer_service->login_customer( $user_id );
+		
+		// Log success
+		HWA_Database::log_auth_event( $user_id, 'google', 'login_success', 'success', $ip, 'Google OAuth flow completed.' );
 		
 		// Update last login timestamp in identities table.
 		$identity = $this->identity_repo->find_google_identity( $profile['sub'] );
