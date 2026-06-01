@@ -89,6 +89,17 @@ function run_hyper_web_auth() {
 		return;
 	}
 
+	// Load Composer autoloader if present.
+	if ( file_exists( HYPER_WEB_AUTH_PATH . 'vendor/autoload.php' ) ) {
+		require_once HYPER_WEB_AUTH_PATH . 'vendor/autoload.php';
+	}
+
+	// Verify required JWT library loaded successfully.
+	if ( ! class_exists( '\Firebase\JWT\JWT' ) ) {
+		add_action( 'admin_notices', 'hwa_composer_missing_notice' );
+		return;
+	}
+
 	require HYPER_WEB_AUTH_PATH . 'includes/class-hyper-web-auth.php';
 
 	$plugin = new Hyper_Web_Auth();
@@ -118,6 +129,27 @@ function hwa_woocommerce_missing_notice() {
 		esc_html__( '%1$s requires %2$s to be installed and activated.', 'hyper-web-auth' ),
 		'<strong>HyperWeb Customer Authentication</strong>',
 		'<strong>WooCommerce</strong>'
+	);
+
+	printf( '<div class="notice notice-error"><p>%s</p></div>', $message );
+}
+
+/**
+ * Displays an admin notice when Composer dependencies are missing.
+ *
+ * @since    1.0.0
+ */
+function hwa_composer_missing_notice() {
+	load_plugin_textdomain(
+		'hyper-web-auth',
+		false,
+		dirname( HYPER_WEB_AUTH_BASENAME ) . '/languages/'
+	);
+
+	$message = sprintf(
+		/* translators: 1: plugin name */
+		esc_html__( '%1$s is missing required dependencies. Please run `composer install` in the plugin directory.', 'hyper-web-auth' ),
+		'<strong>HyperWeb Customer Authentication</strong>'
 	);
 
 	printf( '<div class="notice notice-error"><p>%s</p></div>', $message );
