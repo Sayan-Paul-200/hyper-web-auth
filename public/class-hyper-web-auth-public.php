@@ -100,4 +100,52 @@ class Hyper_Web_Auth_Public {
 
 	}
 
+	/**
+	 * Renders the Google Login button on the WooCommerce login form.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_google_login_button() {
+		$this->render_google_button( 'login', __( 'Continue with Google', 'hyper-web-auth' ) );
+	}
+
+	/**
+	 * Renders the Google Register button on the WooCommerce registration form.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_google_register_button() {
+		$this->render_google_button( 'register', __( 'Sign up with Google', 'hyper-web-auth' ) );
+	}
+
+	/**
+	 * Core logic to render the Google OAuth button.
+	 *
+	 * @since 1.0.0
+	 * @param string $context The flow context ('login' or 'register').
+	 * @param string $button_text The text to display on the button.
+	 */
+	private function render_google_button( $context, $button_text ) {
+		// Do not show if the user is already logged in.
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		// Do not show if Google login is disabled in settings.
+		if ( 'yes' !== HWA_Settings::get_setting( 'google_enabled' ) ) {
+			return;
+		}
+
+		$auth_url = rest_url( 'hyper-web-auth/v1/google/start?context=' . $context );
+
+		// Optionally pass the current URL so we can return them to the exact page they were on.
+		global $wp;
+		if ( ! empty( $wp->request ) ) {
+			$return_to = home_url( $wp->request );
+			$auth_url = add_query_arg( 'return_to', urlencode( $return_to ), $auth_url );
+		}
+
+		include plugin_dir_path( __FILE__ ) . 'partials/google-button.php';
+	}
+
 }

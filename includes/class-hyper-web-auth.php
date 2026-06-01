@@ -260,6 +260,10 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
+		// WooCommerce Frontend Hooks for Google Button
+		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_google_login_button' );
+		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_google_register_button' );
+
 	}
 
 	/**

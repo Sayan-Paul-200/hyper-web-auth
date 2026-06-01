@@ -2,3 +2,58 @@
  * All of the CSS for your public-facing functionality should be
  * included in this file.
  */
+
+/* Google OAuth Button */
+.hwa-oauth-container {
+    margin: 20px 0;
+    width: 100%;
+}
+
+.hwa-google-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+    color: #3c4043;
+    font-family: 'Roboto', 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.25px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    padding: 0 16px;
+    height: 40px;
+    text-decoration: none;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    width: 100%;
+    max-width: 400px;
+}
+
+.hwa-google-btn:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    color: #3c4043;
+    text-decoration: none;
+}
+
+.hwa-google-btn:active {
+    background-color: #e8eaed;
+}
+
+.hwa-google-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+}
+
+.hwa-google-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.hwa-google-btn-text {
+    text-align: center;
+    flex-grow: 1;
+}
