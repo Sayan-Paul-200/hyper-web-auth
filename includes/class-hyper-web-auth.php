@@ -145,6 +145,7 @@ class Hyper_Web_Auth {
 		 * Database repository classes.
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-identity-repository.php';
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-oauth-state-repository.php';
 
 		$this->loader = new Hyper_Web_Auth_Loader();
 		$this->settings = new HWA_Settings();
