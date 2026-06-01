@@ -76,6 +76,15 @@ class Hyper_Web_Auth {
 	public $google_service;
 
 	/**
+	 * The Identity Repository.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_Identity_Repository
+	 */
+	public $identity_repo;
+
+	/**
 	 * The Customer service.
 	 *
 	 * @since    1.0.0
@@ -83,6 +92,7 @@ class Hyper_Web_Auth {
 	 * @var      HWA_Customer_Service
 	 */
 	public $customer_service;
+
 
 	/**
 	 * Define the core functionality of the plugin.
@@ -104,6 +114,7 @@ class Hyper_Web_Auth {
 		$this->load_dependencies();
 		$this->set_locale();
 		$this->define_admin_hooks();
+		$this->define_rest_hooks();
 		$this->define_public_hooks();
 
 	}
@@ -171,9 +182,15 @@ class Hyper_Web_Auth {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-google-oauth-service.php';
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-customer-service.php';
 
+		/**
+		 * REST API Controllers.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'rest/class-hwa-rest-controller.php';
+
 		$this->loader   = new Hyper_Web_Auth_Loader();
 		$this->settings = new HWA_Settings();
 
+		$this->identity_repo    = new HWA_Identity_Repository();
 		$state_repo             = new HWA_OAuth_State_Repository();
 		$this->google_service   = new HWA_Google_OAuth_Service( $state_repo );
 		$this->customer_service = new HWA_Customer_Service();
@@ -211,6 +228,22 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
+	}
+
+	/**
+	 * Register all of the REST API routes.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function define_rest_hooks() {
+		$rest_controller = new HWA_REST_Controller(
+			$this->google_service,
+			$this->identity_repo,
+			$this->customer_service
+		);
+
+		$this->loader->add_action( 'rest_api_init', $rest_controller, 'register_routes' );
 	}
 
 	/**
