@@ -67,6 +67,24 @@ class Hyper_Web_Auth {
 	protected $settings;
 
 	/**
+	 * The Google OAuth service.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_Google_OAuth_Service
+	 */
+	public $google_service;
+
+	/**
+	 * The Customer service.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_Customer_Service
+	 */
+	public $customer_service;
+
+	/**
 	 * Define the core functionality of the plugin.
 	 *
 	 * Set the plugin name and the plugin version that can be used throughout the plugin.
@@ -147,8 +165,18 @@ class Hyper_Web_Auth {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-identity-repository.php';
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-oauth-state-repository.php';
 
-		$this->loader = new Hyper_Web_Auth_Loader();
+		/**
+		 * Authentication services.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-google-oauth-service.php';
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-customer-service.php';
+
+		$this->loader   = new Hyper_Web_Auth_Loader();
 		$this->settings = new HWA_Settings();
+
+		$state_repo             = new HWA_OAuth_State_Repository();
+		$this->google_service   = new HWA_Google_OAuth_Service( $state_repo );
+		$this->customer_service = new HWA_Customer_Service();
 
 	}
 
