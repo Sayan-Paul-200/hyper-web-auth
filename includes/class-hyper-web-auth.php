@@ -253,6 +253,9 @@ class Hyper_Web_Auth {
 		);
 
 		$this->loader->add_action( 'rest_api_init', $rest_controller, 'register_routes' );
+
+		// Hook into WordPress user deletion to clean up our identities table
+		$this->loader->add_action( 'deleted_user', $this->identity_repo, 'delete_all_identities_for_user' );
 	}
 
 	/**

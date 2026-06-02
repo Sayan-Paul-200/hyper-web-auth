@@ -191,4 +191,47 @@ class HWA_Identity_Repository {
 		return null;
 	}
 
+	/**
+	 * Deletes an identity record by ID.
+	 * Useful for cleaning up orphaned records when a WP user is deleted.
+	 *
+	 * @since  1.0.0
+	 * @param  int $identity_id The primary key ID of the identity row.
+	 * @return bool True on success, false on failure.
+	 */
+	public function delete_identity( $identity_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$result = $wpdb->delete(
+			$table_name,
+			array( 'id' => $identity_id ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
+	 * Deletes all identity records associated with a specific WordPress user ID.
+	 *
+	 * @since  1.0.0
+	 * @param  int $user_id The WooCommerce user ID.
+	 * @return bool True on success, false on failure.
+	 */
+	public function delete_all_identities_for_user( $user_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$result = $wpdb->delete(
+			$table_name,
+			array( 'user_id' => $user_id ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
 }

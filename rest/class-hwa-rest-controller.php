@@ -225,7 +225,15 @@ class HWA_REST_Controller extends WP_REST_Controller {
 
 		// Case A: Google sub already exists in hwa_identities -> Login linked user.
 		if ( $identity ) {
-			return (int) $identity->user_id;
+			// Ensure the WordPress user actually still exists (in case it was deleted manually via WP Admin).
+			$user_exists = get_userdata( (int) $identity->user_id );
+			if ( $user_exists ) {
+				return (int) $identity->user_id;
+			}
+			
+			// The user was deleted from WordPress, but the identity row remained. Orphaned record detected!
+			// Delete the orphaned identity record and proceed as if they are a new user.
+			$this->identity_repo->delete_identity( $identity->id );
 		}
 
 		// Sub does not exist. Check if email exists in WP.
