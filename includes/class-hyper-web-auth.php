@@ -167,6 +167,11 @@ class Hyper_Web_Auth {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-security.php';
 
 		/**
+		 * The class responsible for database installation and logging.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-database.php';
+
+		/**
 		 * The class responsible for handling the plugin settings via WooCommerce.
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-settings.php';
