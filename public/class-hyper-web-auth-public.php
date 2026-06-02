@@ -136,7 +136,11 @@ class Hyper_Web_Auth_Public {
 			return;
 		}
 
-		$auth_url = rest_url( 'hyper-web-auth/v1/google/start?context=' . $context );
+		$auth_url = rest_url( 'hyper-web-auth/v1/google/start' );
+		$auth_url = add_query_arg( array(
+			'context' => $context,
+			'_'       => time(), // Cache-buster: unique per page render to prevent stale 302 redirects
+		), $auth_url );
 
 		// Optionally pass the current URL so we can return them to the exact page they were on.
 		global $wp;

@@ -122,7 +122,14 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		}
 
 		// Perform the redirect to Google.
-		// Use status 302 to prevent browsers from caching the redirect with the single-use state.
+		// CRITICAL: Prevent all caching of this redirect response.
+		// Each request generates a unique, single-use state token. If the browser
+		// or a server-side proxy (CDN, Nginx, LiteSpeed) caches this 302 response,
+		// subsequent clicks will reuse a stale/consumed state token and fail.
+		nocache_headers();
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
 		wp_redirect( $auth_url, 302 );
 		exit;
 	}
