@@ -281,12 +281,11 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	 * @param string $message The error message.
 	 */
 	private function redirect_with_error( $message ) {
-		// Attach the error to the session via WooCommerce so it shows up as a notice.
-		if ( function_exists( 'wc_add_notice' ) ) {
-			wc_add_notice( $message, 'error' );
-		}
-		
 		$login_url = wc_get_page_permalink( 'myaccount' );
+		
+		// Pass the error message via URL parameter so the frontend can display it in the active session.
+		$login_url = add_query_arg( 'hwa_error', urlencode( base64_encode( $message ) ), $login_url );
+		
 		wp_safe_redirect( $login_url );
 		exit;
 	}

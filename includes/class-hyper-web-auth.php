@@ -285,6 +285,9 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_google_login_button' );
 		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_google_register_button' );
 
+		// Handle OAuth error redirects on the frontend
+		$this->loader->add_action( 'template_redirect', $plugin_public, 'handle_url_errors' );
+
 	}
 
 	/**

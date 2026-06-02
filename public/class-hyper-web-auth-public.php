@@ -148,4 +148,32 @@ class Hyper_Web_Auth_Public {
 		include plugin_dir_path( __FILE__ ) . 'partials/google-button.php';
 	}
 
+	/**
+	 * Intercepts errors passed via URL parameter (from REST API redirects)
+	 * and adds them to the active WooCommerce session so they display properly.
+	 *
+	 * @since 1.0.0
+	 */
+	public function handle_url_errors() {
+		// Only run if WooCommerce and its notice functions are active
+		if ( ! function_exists( 'wc_add_notice' ) ) {
+			return;
+		}
+
+		if ( isset( $_GET['hwa_error'] ) && ! empty( $_GET['hwa_error'] ) ) {
+			$encoded_message = sanitize_text_field( wp_unslash( $_GET['hwa_error'] ) );
+			$message = base64_decode( $encoded_message, true );
+
+			if ( $message ) {
+				// Add the notice. Since we're in template_redirect, the WC session is active.
+				wc_add_notice( wp_kses_post( $message ), 'error' );
+				
+				// Strip the error from the URL to prevent it from showing again on refresh
+				$clean_url = remove_query_arg( 'hwa_error' );
+				wp_safe_redirect( $clean_url );
+				exit;
+			}
+		}
+	}
+
 }
