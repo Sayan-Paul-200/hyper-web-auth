@@ -41,8 +41,18 @@ class HWA_Settings {
 		add_action( 'woocommerce_settings_tabs_hyper_web_auth', array( $this, 'render_settings' ) );
 		add_action( 'woocommerce_update_options_hyper_web_auth', array( $this, 'save_settings' ) );
 
-		// Intercept get_option() calls made by WooCommerce admin fields to supply
-		// the values from our single `hwa_settings` array option.
+		// Hook the setup of pre_option filters to 'init' to prevent 
+		// "translation loaded too early" notices when calling get_settings_fields().
+		add_action( 'init', array( $this, 'setup_pre_option_filters' ) );
+	}
+
+	/**
+	 * Sets up the pre_option filters to intercept option gets.
+	 * Hooked to 'init' to ensure translations are loaded.
+	 *
+	 * @since 1.0.0
+	 */
+	public function setup_pre_option_filters() {
 		$fields = $this->get_settings_fields();
 		foreach ( $fields as $field ) {
 			if ( isset( $field['id'] ) && strpos( $field['id'], 'hwa_' ) === 0 ) {
