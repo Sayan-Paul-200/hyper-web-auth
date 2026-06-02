@@ -183,7 +183,7 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		$redirect_url = $this->customer_service->get_default_redirect_url( $state_data['context'] );
 		if ( ! empty( $state_data['return_to'] ) ) {
 			// Ensure it's a safe local URL.
-			$redirect_url = wp_safe_redirect( $state_data['return_to'], $redirect_url );
+			$redirect_url = HWA_Security::safe_redirect_url( $state_data['return_to'], $redirect_url );
 		}
 
 		wp_safe_redirect( $redirect_url );
