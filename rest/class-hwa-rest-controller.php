@@ -134,60 +134,85 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	 * @param WP_REST_Request $request
 	 */
 	public function google_callback( $request ) {
-		$code  = $request->get_param( 'code' );
-		$state = $request->get_param( 'state' );
-		$error = $request->get_param( 'error' );
-		$ip    = HWA_Security::get_client_ip();
+		error_log( '[HWA] google_callback ENTERED' );
 
-		if ( ! empty( $error ) ) {
-			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Google returned error: ' . $error );
-			return $this->redirect_with_error( __( 'Google login was cancelled or failed.', 'hyper-web-auth' ) );
+		try {
+			$code  = $request->get_param( 'code' );
+			$state = $request->get_param( 'state' );
+			$error = $request->get_param( 'error' );
+			$ip    = HWA_Security::get_client_ip();
+
+			error_log( '[HWA] code=' . ( $code ? 'present' : 'MISSING' ) . ' state=' . ( $state ? 'present' : 'MISSING' ) . ' error=' . ( $error ?: 'none' ) );
+
+			if ( ! empty( $error ) ) {
+				error_log( '[HWA] Google returned error: ' . $error );
+				HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Google returned error: ' . $error );
+				return $this->redirect_with_error( __( 'Google login was cancelled or failed.', 'hyper-web-auth' ) );
+			}
+
+			if ( empty( $code ) || empty( $state ) ) {
+				error_log( '[HWA] Missing code or state' );
+				HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Missing code or state.' );
+				return $this->redirect_with_error( __( 'Invalid response from Google.', 'hyper-web-auth' ) );
+			}
+
+			$callback_data = $this->google_service->handle_callback( $code, $state );
+
+			if ( is_wp_error( $callback_data ) ) {
+				error_log( '[HWA] handle_callback error: ' . $callback_data->get_error_message() );
+				HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $callback_data->get_error_message() );
+				return $this->redirect_with_error( $callback_data->get_error_message() );
+			}
+
+			$profile    = $callback_data['profile'];
+			$state_data = $callback_data['context'];
+
+			error_log( '[HWA] Profile email: ' . $profile['email'] . ' | Context: ' . $state_data['context'] );
+
+			// Resolve User (Phase 1.9 Flow Rules)
+			$user_id = $this->resolve_user_from_profile( $profile, $state_data );
+
+			if ( is_wp_error( $user_id ) ) {
+				error_log( '[HWA] resolve_user_from_profile error: ' . $user_id->get_error_message() );
+				HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $user_id->get_error_message() );
+				return $this->redirect_with_error( $user_id->get_error_message() );
+			}
+
+			error_log( '[HWA] Resolved user_id: ' . $user_id );
+
+			// Set authentication cookies to log the user in.
+			$this->customer_service->login_customer( $user_id );
+			
+			error_log( '[HWA] login_customer called for user_id: ' . $user_id );
+			
+			// Log success
+			HWA_Database::log_auth_event( $user_id, 'google', 'login_success', 'success', $ip, 'Google OAuth flow completed.' );
+			
+			// Update last login timestamp in identities table.
+			$identity = $this->identity_repo->find_google_identity( $profile['sub'] );
+			if ( $identity ) {
+				$this->identity_repo->update_last_login( $identity->id );
+			}
+
+			// Redirect home or to requested path.
+			$redirect_url = $this->customer_service->get_default_redirect_url( $state_data['context'] );
+			if ( ! empty( $state_data['return_to'] ) ) {
+				// Ensure it's a safe local URL.
+				$redirect_url = HWA_Security::safe_redirect_url( $state_data['return_to'], $redirect_url );
+			}
+
+			error_log( '[HWA] Redirecting to: ' . $redirect_url );
+
+			// Use nocache_headers to prevent caching of the redirect.
+			nocache_headers();
+			wp_safe_redirect( $redirect_url );
+			exit;
+
+		} catch ( \Throwable $e ) {
+			error_log( '[HWA] UNCAUGHT EXCEPTION in google_callback: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+			error_log( '[HWA] Stack trace: ' . $e->getTraceAsString() );
+			return $this->redirect_with_error( __( 'An unexpected error occurred during authentication.', 'hyper-web-auth' ) );
 		}
-
-		if ( empty( $code ) || empty( $state ) ) {
-			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, 'Missing code or state.' );
-			return $this->redirect_with_error( __( 'Invalid response from Google.', 'hyper-web-auth' ) );
-		}
-
-		$callback_data = $this->google_service->handle_callback( $code, $state );
-
-		if ( is_wp_error( $callback_data ) ) {
-			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $callback_data->get_error_message() );
-			return $this->redirect_with_error( $callback_data->get_error_message() );
-		}
-
-		$profile    = $callback_data['profile'];
-		$state_data = $callback_data['context'];
-
-		// Resolve User (Phase 1.9 Flow Rules)
-		$user_id = $this->resolve_user_from_profile( $profile, $state_data );
-
-		if ( is_wp_error( $user_id ) ) {
-			HWA_Database::log_auth_event( null, 'google', 'login_failed', 'failed', $ip, $user_id->get_error_message() );
-			return $this->redirect_with_error( $user_id->get_error_message() );
-		}
-
-		// Set authentication cookies to log the user in.
-		$this->customer_service->login_customer( $user_id );
-		
-		// Log success
-		HWA_Database::log_auth_event( $user_id, 'google', 'login_success', 'success', $ip, 'Google OAuth flow completed.' );
-		
-		// Update last login timestamp in identities table.
-		$identity = $this->identity_repo->find_google_identity( $profile['sub'] );
-		if ( $identity ) {
-			$this->identity_repo->update_last_login( $identity->id );
-		}
-
-		// Redirect home or to requested path.
-		$redirect_url = $this->customer_service->get_default_redirect_url( $state_data['context'] );
-		if ( ! empty( $state_data['return_to'] ) ) {
-			// Ensure it's a safe local URL.
-			$redirect_url = HWA_Security::safe_redirect_url( $state_data['return_to'], $redirect_url );
-		}
-
-		wp_safe_redirect( $redirect_url );
-		exit;
 	}
 
 	/**
