@@ -119,8 +119,24 @@ class HWA_Customer_Service {
 		// Generate a strong random password (user logs in via phone, never needs this).
 		$password = wp_generate_password( 32, true, true );
 
-		// Derive username from email prefix.
-		$username = sanitize_user( current( explode( '@', $email ) ), true );
+		// Derive a human-readable username from the customer's name.
+		// e.g. "Sayan Paul" → "sayan.paul". Falls back to email prefix if name is empty.
+		$first = sanitize_text_field( $first_name );
+		$last  = sanitize_text_field( $last_name );
+
+		if ( ! empty( $first ) && ! empty( $last ) ) {
+			$base_username = sanitize_user( strtolower( $first . '.' . $last ), true );
+		} else {
+			$base_username = sanitize_user( current( explode( '@', $email ) ), true );
+		}
+
+		// Ensure uniqueness — append a number if the username already exists.
+		$username = $base_username;
+		$counter  = 1;
+		while ( username_exists( $username ) ) {
+			$username = $base_username . $counter;
+			$counter++;
+		}
 
 		$user_id = wc_create_new_customer( $email, $username, $password );
 
@@ -128,17 +144,19 @@ class HWA_Customer_Service {
 			return $user_id;
 		}
 
-		// Set first/last name on the user profile.
+		// Set first/last name and display_name on the user profile.
+		$display_name = trim( $first . ' ' . $last );
 		$user_data = array(
-			'ID'         => $user_id,
-			'first_name' => sanitize_text_field( $first_name ),
-			'last_name'  => sanitize_text_field( $last_name ),
+			'ID'           => $user_id,
+			'first_name'   => $first,
+			'last_name'    => $last,
+			'display_name' => ! empty( $display_name ) ? $display_name : $username,
 		);
 		wp_update_user( $user_data );
 
 		// Also set WooCommerce billing name fields.
-		update_user_meta( $user_id, 'billing_first_name', sanitize_text_field( $first_name ) );
-		update_user_meta( $user_id, 'billing_last_name', sanitize_text_field( $last_name ) );
+		update_user_meta( $user_id, 'billing_first_name', $first );
+		update_user_meta( $user_id, 'billing_last_name', $last );
 
 		return $user_id;
 	}
