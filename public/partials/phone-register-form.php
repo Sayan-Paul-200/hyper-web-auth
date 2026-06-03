@@ -2,6 +2,14 @@
 /**
  * Provide a public-facing view for the Phone Register form.
  *
+ * This template is injected via woocommerce_register_form_end, which means
+ * it renders INSIDE WooCommerce's own <form>. We must NOT use a nested
+ * <form> tag — browsers silently strip nested forms, breaking our JS.
+ *
+ * The Email field is intentionally removed here because WooCommerce already
+ * renders its own email field (#reg_email) above us. Our JavaScript reads
+ * from that native field to avoid duplication.
+ *
  * @link       https://github.com/Sayan-Paul-200
  * @since      1.0.0
  *
@@ -14,7 +22,7 @@
 <div class="hwa-phone-auth-container hwa-phone-register">
 	<p class="hwa-phone-separator"><?php esc_html_e( '— OR —', 'hyper-web-auth' ); ?></p>
 	
-	<form id="hwa-phone-register-form" class="hwa-phone-form" autocomplete="off">
+	<div id="hwa-phone-register-form" class="hwa-phone-form">
 		<div id="hwa-phone-register-error" class="woocommerce-error hwa-hidden" role="alert"></div>
 
 		<!-- Step 1: Request SMS -->
@@ -31,11 +39,6 @@
 			<div class="clear"></div>
 
 			<p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
-				<label for="hwa_register_email"><?php esc_html_e( 'Email address', 'hyper-web-auth' ); ?>&nbsp;<span class="required">*</span></label>
-				<input type="email" class="woocommerce-Input woocommerce-Input--text input-text" name="hwa_register_email" id="hwa_register_email" />
-			</p>
-
-			<p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
 				<label for="hwa_register_phone"><?php esc_html_e( 'Phone number', 'hyper-web-auth' ); ?>&nbsp;<span class="required">*</span></label>
 				<input type="tel" class="woocommerce-Input woocommerce-Input--text input-text" name="hwa_register_phone" id="hwa_register_phone" placeholder="+1234567890" />
 			</p>
@@ -48,7 +51,7 @@
 			<?php endif; ?>
 
 			<p class="form-row">
-				<button type="submit" class="woocommerce-button button" id="hwa-btn-send-register-sms" value="<?php esc_attr_e( 'Continue with Phone', 'hyper-web-auth' ); ?>"><?php esc_html_e( 'Continue with Phone', 'hyper-web-auth' ); ?></button>
+				<button type="button" class="woocommerce-button button" id="hwa-btn-send-register-sms"><?php esc_html_e( 'Continue with Phone', 'hyper-web-auth' ); ?></button>
 			</p>
 			<div id="hwa-recaptcha-register-container"></div>
 		</div>
@@ -61,8 +64,8 @@
 				<small class="hwa-help-text"><?php esc_html_e( 'Enter the 6-digit code sent to your phone.', 'hyper-web-auth' ); ?></small>
 			</p>
 			<p class="form-row">
-				<button type="submit" class="woocommerce-button button" id="hwa-btn-verify-register-otp" value="<?php esc_attr_e( 'Verify and Register', 'hyper-web-auth' ); ?>"><?php esc_html_e( 'Verify and Register', 'hyper-web-auth' ); ?></button>
+				<button type="button" class="woocommerce-button button" id="hwa-btn-verify-register-otp"><?php esc_html_e( 'Verify and Register', 'hyper-web-auth' ); ?></button>
 			</p>
 		</div>
-	</form>
+	</div>
 </div>

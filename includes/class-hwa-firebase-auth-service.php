@@ -67,25 +67,19 @@ class HWA_Firebase_Auth_Service {
 		}
 
 		$service_account = $this->get_service_account_config();
-		$project_id      = HWA_Settings::get_setting( 'firebase_project_id' );
 
-		if ( empty( $service_account ) && empty( $project_id ) ) {
-			return; // Soft failure: neither service account nor project ID is configured
+		if ( empty( $service_account ) ) {
+			return; // Soft failure: not configured — Service Account JSON is required
 		}
 
 		try {
 			$factory = ( new Factory() );
 
-			if ( ! empty( $service_account ) ) {
-				// Determine if $service_account is a JSON string or a file path.
-				if ( is_string( $service_account ) && strpos( trim( $service_account ), '{' ) === 0 ) {
-					$factory = $factory->withServiceAccount( json_decode( $service_account, true ) );
-				} else {
-					$factory = $factory->withServiceAccount( $service_account );
-				}
-			} elseif ( ! empty( $project_id ) ) {
-				// Fallback to verifying tokens using just the Project ID
-				$factory = $factory->withProjectId( $project_id );
+			// Determine if $service_account is a JSON string or a file path.
+			if ( is_string( $service_account ) && strpos( trim( $service_account ), '{' ) === 0 ) {
+				$factory = $factory->withServiceAccount( json_decode( $service_account, true ) );
+			} else {
+				$factory = $factory->withServiceAccount( $service_account );
 			}
 
 			$this->auth         = $factory->createAuth();

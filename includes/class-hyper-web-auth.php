@@ -277,8 +277,7 @@ class Hyper_Web_Auth {
 			$this->identity_repo,
 			$this->customer_service,
 			$this->firebase_service,
-			$this->rate_limiter,
-			$this->audit_logger
+			$this->rate_limiter
 		);
 
 		$this->loader->add_action( 'rest_api_init', $rest_controller, 'register_routes' );

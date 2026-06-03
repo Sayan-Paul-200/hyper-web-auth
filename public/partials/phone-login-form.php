@@ -2,6 +2,12 @@
 /**
  * Provide a public-facing view for the Phone Login form.
  *
+ * This template is injected via woocommerce_login_form_end, which means
+ * it renders INSIDE WooCommerce's own <form>. We must NOT use a nested
+ * <form> tag — browsers silently strip nested forms, breaking our JS.
+ * Instead we use a <div> wrapper and type="button" to prevent accidental
+ * submission of the parent WooCommerce form.
+ *
  * @link       https://github.com/Sayan-Paul-200
  * @since      1.0.0
  *
@@ -14,7 +20,7 @@
 <div class="hwa-phone-auth-container hwa-phone-login">
 	<p class="hwa-phone-separator"><?php esc_html_e( '— OR —', 'hyper-web-auth' ); ?></p>
 	
-	<form id="hwa-phone-login-form" class="hwa-phone-form" autocomplete="off">
+	<div id="hwa-phone-login-form" class="hwa-phone-form">
 		<div id="hwa-phone-login-error" class="woocommerce-error hwa-hidden" role="alert"></div>
 
 		<!-- Step 1: Request SMS -->
@@ -32,7 +38,7 @@
 			<?php endif; ?>
 
 			<p class="form-row">
-				<button type="submit" class="woocommerce-button button" id="hwa-btn-send-login-sms" value="<?php esc_attr_e( 'Continue with Phone', 'hyper-web-auth' ); ?>"><?php esc_html_e( 'Continue with Phone', 'hyper-web-auth' ); ?></button>
+				<button type="button" class="woocommerce-button button" id="hwa-btn-send-login-sms"><?php esc_html_e( 'Continue with Phone', 'hyper-web-auth' ); ?></button>
 			</p>
 			<div id="hwa-recaptcha-login-container"></div>
 		</div>
@@ -45,8 +51,8 @@
 				<small class="hwa-help-text"><?php esc_html_e( 'Enter the 6-digit code sent to your phone.', 'hyper-web-auth' ); ?></small>
 			</p>
 			<p class="form-row">
-				<button type="submit" class="woocommerce-button button" id="hwa-btn-verify-login-otp" value="<?php esc_attr_e( 'Verify and Login', 'hyper-web-auth' ); ?>"><?php esc_html_e( 'Verify and Login', 'hyper-web-auth' ); ?></button>
+				<button type="button" class="woocommerce-button button" id="hwa-btn-verify-login-otp"><?php esc_html_e( 'Verify and Login', 'hyper-web-auth' ); ?></button>
 			</p>
 		</div>
-	</form>
+	</div>
 </div>

@@ -57,13 +57,6 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	private $rate_limiter;
 
 	/**
-	 * The Audit Logger instance.
-	 *
-	 * @var HWA_Audit_Logger
-	 */
-	private $audit_logger;
-
-	/**
 	 * Initialize the controller.
 	 *
 	 * @param HWA_Google_OAuth_Service  $google_service
@@ -71,16 +64,14 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	 * @param HWA_Customer_Service      $customer_service
 	 * @param HWA_Firebase_Auth_Service $firebase_service
 	 * @param HWA_Rate_Limiter          $rate_limiter
-	 * @param HWA_Audit_Logger          $audit_logger
 	 */
-	public function __construct( $google_service, $identity_repo, $customer_service, $firebase_service, $rate_limiter, $audit_logger ) {
+	public function __construct( $google_service, $identity_repo, $customer_service, $firebase_service, $rate_limiter ) {
 		$this->namespace        = 'hyper-web-auth/v1';
 		$this->google_service   = $google_service;
 		$this->identity_repo    = $identity_repo;
 		$this->customer_service = $customer_service;
 		$this->firebase_service = $firebase_service;
 		$this->rate_limiter     = $rate_limiter;
-		$this->audit_logger     = $audit_logger;
 	}
 
 	/**
@@ -528,16 +519,14 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		wp_set_current_user( $user->ID );
 		wp_set_auth_cookie( $user->ID, true );
 
-		if ( $this->audit_logger ) {
-			$this->audit_logger->log_event(
-				'firebase_phone_login',
-				$user->ID,
-				array(
-					'phone' => HWA_Security::mask_phone( $phone_e164 ),
-					'ip'    => HWA_Security::hash_ip( $ip ),
-				)
-			);
-		}
+		HWA_Database::log_auth_event(
+			$user->ID,
+			'firebase_phone',
+			'login_success',
+			'success',
+			$ip,
+			'Phone login: ' . HWA_Security::mask_phone( $phone_e164 )
+		);
 
 		return rest_ensure_response( array(
 			'success'      => true,
@@ -684,16 +673,14 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		wp_set_current_user( $user_id );
 		wp_set_auth_cookie( $user_id, true );
 
-		if ( $this->audit_logger ) {
-			$this->audit_logger->log_event(
-				'firebase_phone_register',
-				$user_id,
-				array(
-					'phone' => HWA_Security::mask_phone( $phone_e164 ),
-					'ip'    => HWA_Security::hash_ip( $ip ),
-				)
-			);
-		}
+		HWA_Database::log_auth_event(
+			$user_id,
+			'firebase_phone',
+			'register_success',
+			'success',
+			$ip,
+			'Phone registration: ' . HWA_Security::mask_phone( $phone_e164 )
+		);
 
 		return rest_ensure_response( array(
 			'success'      => true,

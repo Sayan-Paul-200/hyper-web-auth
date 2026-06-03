@@ -199,7 +199,7 @@
 					const phone = $('#hwa_register_phone').val().trim();
 					const firstName = $('#hwa_register_first_name').val().trim();
 					const lastName = $('#hwa_register_last_name').val().trim();
-					const email = $('#hwa_register_email').val().trim();
+					const email = $('#reg_email').val().trim();
 
 					if ( ! phone || ! firstName || ! lastName || ! email ) {
 						showError($errorDiv, hwaFirebaseConfig.strings.missing_fields);
@@ -263,7 +263,7 @@
 							const phone = $('#hwa_register_phone').val().trim();
 							const firstName = $('#hwa_register_first_name').val().trim();
 							const lastName = $('#hwa_register_last_name').val().trim();
-							const email = $('#hwa_register_email').val().trim();
+							const email = $('#reg_email').val().trim();
 							
 							$.ajax({
 								url: hwaFirebaseConfig.apiBase + 'register/complete',
