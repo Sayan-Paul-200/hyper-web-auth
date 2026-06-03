@@ -105,6 +105,13 @@ class HWA_Settings {
 				}
 				return __( '❌ Settings path defined but file does not exist', 'hyper-web-auth' );
 			}
+
+			// Fallback check
+			$project_id = get_option( self::OPTION_KEY, array() )['firebase_project_id'] ?? '';
+			if ( ! empty( $project_id ) ) {
+				return __( '⚠️ Service Account missing. Falling back to Project ID (Limited features, but login works)', 'hyper-web-auth' );
+			}
+
 			return __( '❌ Not configured — Firebase token verification will not work', 'hyper-web-auth' );
 		}
 
