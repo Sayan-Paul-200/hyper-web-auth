@@ -199,13 +199,8 @@
 					const phone = $('#hwa_register_phone').val().trim();
 					const firstName = $('#hwa_register_first_name').val().trim();
 					const lastName = $('#hwa_register_last_name').val().trim();
-					const email = $('#reg_email').val().trim();
+					const email = $('#reg_email').length ? $('#reg_email').val().trim() : '';
 
-					if ( ! email ) {
-						showError($errorDiv, 'Please enter your email address in the Email field above.');
-						$('#reg_email').focus();
-						return;
-					}
 					if ( ! firstName ) {
 						showError($errorDiv, 'Please enter your first name.');
 						$('#hwa_register_first_name').focus();
@@ -279,7 +274,7 @@
 							const phone = $('#hwa_register_phone').val().trim();
 							const firstName = $('#hwa_register_first_name').val().trim();
 							const lastName = $('#hwa_register_last_name').val().trim();
-							const email = $('#reg_email').val().trim();
+							const email = $('#reg_email').length ? $('#reg_email').val().trim() : '';
 							
 							$.ajax({
 								url: hwaFirebaseConfig.apiBase + 'register/complete',

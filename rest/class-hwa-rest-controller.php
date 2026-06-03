@@ -604,11 +604,20 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			return new WP_Error( 'missing_params', __( 'Phone and token are required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
 		}
 
-		if ( empty( $first_name ) || empty( $last_name ) || empty( $email ) ) {
-			return new WP_Error( 'missing_fields', __( 'Name and email are required for registration.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		if ( empty( $first_name ) || empty( $last_name ) ) {
+			return new WP_Error( 'missing_fields', __( 'First name and last name are required for registration.', 'hyper-web-auth' ), array( 'status' => 400 ) );
 		}
 
-		// Validate email
+		// If email is not provided, generate a placeholder based on the phone number.
+		// The user can update their real email later from My Account.
+		if ( empty( $email ) ) {
+			$phone_e164_for_hash = HWA_Security::normalize_phone( $phone );
+			$hash               = substr( hash( 'sha256', $phone_e164_for_hash ), 0, 12 );
+			$site_domain         = wp_parse_url( home_url(), PHP_URL_HOST );
+			$email               = 'phone.' . $hash . '@' . $site_domain;
+		}
+
+		// Validate email (whether user-provided or generated)
 		if ( ! is_email( $email ) ) {
 			return new WP_Error( 'invalid_email', __( 'Invalid email address.', 'hyper-web-auth' ), array( 'status' => 400 ) );
 		}
