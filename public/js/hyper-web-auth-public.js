@@ -201,8 +201,24 @@
 					const lastName = $('#hwa_register_last_name').val().trim();
 					const email = $('#reg_email').val().trim();
 
-					if ( ! phone || ! firstName || ! lastName || ! email ) {
-						showError($errorDiv, hwaFirebaseConfig.strings.missing_fields);
+					if ( ! email ) {
+						showError($errorDiv, 'Please enter your email address in the Email field above.');
+						$('#reg_email').focus();
+						return;
+					}
+					if ( ! firstName ) {
+						showError($errorDiv, 'Please enter your first name.');
+						$('#hwa_register_first_name').focus();
+						return;
+					}
+					if ( ! lastName ) {
+						showError($errorDiv, 'Please enter your last name.');
+						$('#hwa_register_last_name').focus();
+						return;
+					}
+					if ( ! phone ) {
+						showError($errorDiv, hwaFirebaseConfig.strings.invalid_phone);
+						$('#hwa_register_phone').focus();
 						return;
 					}
 
