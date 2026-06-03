@@ -76,6 +76,15 @@
 				$errorDiv.addClass('hwa-hidden').text('');
 			}
 
+			// Normalize phone: auto-prepend default country code if user didn't include '+'
+			function normalizePhone( raw ) {
+				raw = raw.replace(/[\s\-\(\)]/g, ''); // strip spaces, dashes, parens
+				if ( raw.charAt(0) !== '+' ) {
+					raw = hwaFirebaseConfig.defaultCountryCode + raw;
+				}
+				return raw;
+			}
+
 			// -------------------------------------------------------------------
 			// LOGIN FLOW
 			// -------------------------------------------------------------------
@@ -89,7 +98,7 @@
 					e.preventDefault();
 					hideError($errorDiv);
 					
-					const phone = $('#hwa_login_phone').val().trim();
+					const phone = normalizePhone( $('#hwa_login_phone').val().trim() );
 					if ( ! phone ) {
 						showError($errorDiv, hwaFirebaseConfig.strings.invalid_phone);
 						return;
@@ -151,7 +160,7 @@
 						})
 						.then(function(idToken) {
 							// Send ID token to our Complete endpoint
-							const phone = $('#hwa_login_phone').val().trim();
+							const phone = normalizePhone( $('#hwa_login_phone').val().trim() );
 							
 							$.ajax({
 								url: hwaFirebaseConfig.apiBase + 'login/complete',
@@ -196,7 +205,7 @@
 					e.preventDefault();
 					hideError($errorDiv);
 					
-					const phone = $('#hwa_register_phone').val().trim();
+					const phone = normalizePhone( $('#hwa_register_phone').val().trim() );
 					const firstName = $('#hwa_register_first_name').val().trim();
 					const lastName = $('#hwa_register_last_name').val().trim();
 					const email = $('#reg_email').length ? $('#reg_email').val().trim() : '';
@@ -271,7 +280,7 @@
 							return result.user.getIdToken();
 						})
 						.then(function(idToken) {
-							const phone = $('#hwa_register_phone').val().trim();
+							const phone = normalizePhone( $('#hwa_register_phone').val().trim() );
 							const firstName = $('#hwa_register_first_name').val().trim();
 							const lastName = $('#hwa_register_last_name').val().trim();
 							const email = $('#reg_email').length ? $('#reg_email').val().trim() : '';

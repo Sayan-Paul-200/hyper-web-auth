@@ -100,20 +100,21 @@ class Hyper_Web_Auth_Public {
 
 		// Localize Firebase configuration for the frontend script
 		$firebase_config = array(
-			'enabled'           => HWA_Settings::get_setting( 'firebase_phone_enabled' ) === 'yes',
-			'apiKey'            => HWA_Settings::get_setting( 'firebase_api_key' ),
-			'authDomain'        => HWA_Settings::get_setting( 'firebase_auth_domain' ),
-			'projectId'         => HWA_Settings::get_setting( 'firebase_project_id' ),
-			'appId'             => HWA_Settings::get_setting( 'firebase_app_id' ),
-			'measurementId'     => HWA_Settings::get_setting( 'firebase_measurement_id' ),
-			'messagingSenderId' => HWA_Settings::get_setting( 'firebase_messaging_sender_id' ),
-			'recaptchaMode'     => HWA_Settings::get_setting( 'firebase_recaptcha_mode', 'invisible' ),
-			'apiBase'           => rest_url( 'hyper-web-auth/v1/firebase-phone/' ),
-			'nonce'             => wp_create_nonce( 'wp_rest' ), // For API calls if needed, though routes are currently public
-			'strings'           => array(
-				'invalid_phone' => __( 'Please enter a valid phone number.', 'hyper-web-auth' ),
+			'enabled'            => HWA_Settings::get_setting( 'firebase_phone_enabled' ) === 'yes',
+			'apiKey'             => HWA_Settings::get_setting( 'firebase_api_key' ),
+			'authDomain'         => HWA_Settings::get_setting( 'firebase_auth_domain' ),
+			'projectId'          => HWA_Settings::get_setting( 'firebase_project_id' ),
+			'appId'              => HWA_Settings::get_setting( 'firebase_app_id' ),
+			'measurementId'      => HWA_Settings::get_setting( 'firebase_measurement_id' ),
+			'messagingSenderId'  => HWA_Settings::get_setting( 'firebase_messaging_sender_id' ),
+			'recaptchaMode'      => HWA_Settings::get_setting( 'firebase_recaptcha_mode', 'invisible' ),
+			'defaultCountryCode' => HWA_Settings::get_setting( 'firebase_default_country_code', '+91' ),
+			'apiBase'            => rest_url( 'hyper-web-auth/v1/firebase-phone/' ),
+			'nonce'              => wp_create_nonce( 'wp_rest' ),
+			'strings'            => array(
+				'invalid_phone'  => __( 'Please enter a valid phone number.', 'hyper-web-auth' ),
 				'missing_fields' => __( 'Please fill in all required fields.', 'hyper-web-auth' ),
-				'generic_error' => __( 'An error occurred. Please try again.', 'hyper-web-auth' ),
+				'generic_error'  => __( 'An error occurred. Please try again.', 'hyper-web-auth' ),
 			)
 		);
 
