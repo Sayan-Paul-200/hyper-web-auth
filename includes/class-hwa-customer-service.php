@@ -98,15 +98,49 @@ class HWA_Customer_Service {
 	}
 
 	/**
-	 * Creates a new WooCommerce customer from a Firebase phone registration.
+	 * Creates a new WooCommerce customer with the given email, first name, and last name.
+	 *
+	 * Used by the Firebase phone registration flow. Generates a secure random
+	 * password and derives a username from the email prefix.
 	 *
 	 * @since  1.0.0
-	 * @param  array $registration_data
-	 * @return int|WP_Error
+	 * @param  string $email      The customer's email address.
+	 * @param  string $first_name The customer's first name.
+	 * @param  string $last_name  The customer's last name.
+	 * @return int|WP_Error The newly created user ID, or WP_Error on failure.
 	 */
-	public function create_customer_from_phone_registration( $registration_data ) {
-		// TODO: Implement in Phase 2
-		return 0;
+	public function create_customer( $email, $first_name, $last_name ) {
+		$email = sanitize_email( $email );
+
+		if ( empty( $email ) ) {
+			return new WP_Error( 'missing_email', __( 'Cannot create customer without an email address.', 'hyper-web-auth' ) );
+		}
+
+		// Generate a strong random password (user logs in via phone, never needs this).
+		$password = wp_generate_password( 32, true, true );
+
+		// Derive username from email prefix.
+		$username = sanitize_user( current( explode( '@', $email ) ), true );
+
+		$user_id = wc_create_new_customer( $email, $username, $password );
+
+		if ( is_wp_error( $user_id ) ) {
+			return $user_id;
+		}
+
+		// Set first/last name on the user profile.
+		$user_data = array(
+			'ID'         => $user_id,
+			'first_name' => sanitize_text_field( $first_name ),
+			'last_name'  => sanitize_text_field( $last_name ),
+		);
+		wp_update_user( $user_data );
+
+		// Also set WooCommerce billing name fields.
+		update_user_meta( $user_id, 'billing_first_name', sanitize_text_field( $first_name ) );
+		update_user_meta( $user_id, 'billing_last_name', sanitize_text_field( $last_name ) );
+
+		return $user_id;
 	}
 
 	/**
