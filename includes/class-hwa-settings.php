@@ -106,7 +106,13 @@ class HWA_Settings {
 				return __( '❌ Settings path defined but file does not exist', 'hyper-web-auth' );
 			}
 
-			return __( '❌ Not configured — Firebase token verification will not work. Please provide a Service Account JSON.', 'hyper-web-auth' );
+			// No Service Account — check if manual mode is possible via Project ID
+			$project_id = get_option( self::OPTION_KEY, array() )['firebase_project_id'] ?? '';
+			if ( ! empty( $project_id ) ) {
+				return __( '✅ Using manual JWT verification (Project ID only — no Service Account needed)', 'hyper-web-auth' );
+			}
+
+			return __( '❌ Not configured — provide a Service Account JSON or at minimum a Project ID.', 'hyper-web-auth' );
 		}
 
 		// 2. Check saved options array.
