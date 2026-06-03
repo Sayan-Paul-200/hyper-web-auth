@@ -76,6 +76,24 @@ class Hyper_Web_Auth {
 	public $google_service;
 
 	/**
+	 * The Firebase Auth service.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_Firebase_Auth_Service
+	 */
+	public $firebase_service;
+
+	/**
+	 * The Rate Limiter.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_Rate_Limiter
+	 */
+	public $rate_limiter;
+
+	/**
 	 * The Identity Repository.
 	 *
 	 * @since    1.0.0
@@ -177,6 +195,11 @@ class Hyper_Web_Auth {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-settings.php';
 
 		/**
+		 * The rate limiter for API endpoints.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-rate-limiter.php';
+
+		/**
 		 * Database repository classes.
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-identity-repository.php';
@@ -186,6 +209,7 @@ class Hyper_Web_Auth {
 		 * Authentication services.
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-google-oauth-service.php';
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-firebase-auth-service.php';
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-customer-service.php';
 
 		/**
@@ -193,12 +217,14 @@ class Hyper_Web_Auth {
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'rest/class-hwa-rest-controller.php';
 
-		$this->loader   = new Hyper_Web_Auth_Loader();
-		$this->settings = new HWA_Settings();
+		$this->loader       = new Hyper_Web_Auth_Loader();
+		$this->settings     = new HWA_Settings();
+		$this->rate_limiter = new HWA_Rate_Limiter();
 
 		$this->identity_repo    = new HWA_Identity_Repository();
 		$state_repo             = new HWA_OAuth_State_Repository();
 		$this->google_service   = new HWA_Google_OAuth_Service( $state_repo );
+		$this->firebase_service = new HWA_Firebase_Auth_Service();
 		$this->customer_service = new HWA_Customer_Service();
 
 	}
@@ -249,7 +275,10 @@ class Hyper_Web_Auth {
 		$rest_controller = new HWA_REST_Controller(
 			$this->google_service,
 			$this->identity_repo,
-			$this->customer_service
+			$this->customer_service,
+			$this->firebase_service,
+			$this->rate_limiter,
+			$this->audit_logger
 		);
 
 		$this->loader->add_action( 'rest_api_init', $rest_controller, 'register_routes' );
@@ -287,6 +316,10 @@ class Hyper_Web_Auth {
 		// WooCommerce Frontend Hooks for Google Button
 		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_google_login_button' );
 		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_google_register_button' );
+
+		// WooCommerce Frontend Hooks for Firebase Phone Forms
+		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_phone_login_form' );
+		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_phone_register_form' );
 
 		// Handle OAuth error redirects on the frontend
 		$this->loader->add_action( 'template_redirect', $plugin_public, 'handle_url_errors' );

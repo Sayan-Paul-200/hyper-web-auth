@@ -98,6 +98,26 @@ class Hyper_Web_Auth_Public {
 
 		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/hyper-web-auth-public.js', array( 'jquery' ), $this->version, false );
 
+		// Localize Firebase configuration for the frontend script
+		$firebase_config = array(
+			'enabled'           => HWA_Settings::get_setting( 'firebase_phone_enabled' ) === 'yes',
+			'apiKey'            => HWA_Settings::get_setting( 'firebase_api_key' ),
+			'authDomain'        => HWA_Settings::get_setting( 'firebase_auth_domain' ),
+			'projectId'         => HWA_Settings::get_setting( 'firebase_project_id' ),
+			'appId'             => HWA_Settings::get_setting( 'firebase_app_id' ),
+			'measurementId'     => HWA_Settings::get_setting( 'firebase_measurement_id' ),
+			'messagingSenderId' => HWA_Settings::get_setting( 'firebase_messaging_sender_id' ),
+			'recaptchaMode'     => HWA_Settings::get_setting( 'firebase_recaptcha_mode', 'invisible' ),
+			'apiBase'           => rest_url( 'hyper-web-auth/v1/firebase-phone/' ),
+			'nonce'             => wp_create_nonce( 'wp_rest' ), // For API calls if needed, though routes are currently public
+			'strings'           => array(
+				'invalid_phone' => __( 'Please enter a valid phone number.', 'hyper-web-auth' ),
+				'missing_fields' => __( 'Please fill in all required fields.', 'hyper-web-auth' ),
+				'generic_error' => __( 'An error occurred. Please try again.', 'hyper-web-auth' ),
+			)
+		);
+
+		wp_localize_script( $this->plugin_name, 'hwaFirebaseConfig', $firebase_config );
 	}
 
 	/**
@@ -116,6 +136,36 @@ class Hyper_Web_Auth_Public {
 	 */
 	public function render_google_register_button() {
 		$this->render_google_button( 'register', __( 'Sign up with Google', 'hyper-web-auth' ) );
+	}
+
+	/**
+	 * Renders the Firebase Phone Login form.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_phone_login_form() {
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_enabled' ) ) {
+			return;
+		}
+		
+		include plugin_dir_path( __FILE__ ) . 'partials/phone-login-form.php';
+	}
+
+	/**
+	 * Renders the Firebase Phone Register form.
+	 *
+	 * @since 1.0.0
+	 */
+	public function render_phone_register_form() {
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_enabled' ) ) {
+			return;
+		}
+
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_registration_enabled' ) ) {
+			return;
+		}
+
+		include plugin_dir_path( __FILE__ ) . 'partials/phone-register-form.php';
 	}
 
 	/**

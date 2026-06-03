@@ -43,17 +43,44 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	private $customer_service;
 
 	/**
+	 * The Firebase Auth Service instance.
+	 *
+	 * @var HWA_Firebase_Auth_Service
+	 */
+	private $firebase_service;
+
+	/**
+	 * The Rate Limiter instance.
+	 *
+	 * @var HWA_Rate_Limiter
+	 */
+	private $rate_limiter;
+
+	/**
+	 * The Audit Logger instance.
+	 *
+	 * @var HWA_Audit_Logger
+	 */
+	private $audit_logger;
+
+	/**
 	 * Initialize the controller.
 	 *
-	 * @param HWA_Google_OAuth_Service $google_service
-	 * @param HWA_Identity_Repository  $identity_repo
-	 * @param HWA_Customer_Service     $customer_service
+	 * @param HWA_Google_OAuth_Service  $google_service
+	 * @param HWA_Identity_Repository   $identity_repo
+	 * @param HWA_Customer_Service      $customer_service
+	 * @param HWA_Firebase_Auth_Service $firebase_service
+	 * @param HWA_Rate_Limiter          $rate_limiter
+	 * @param HWA_Audit_Logger          $audit_logger
 	 */
-	public function __construct( $google_service, $identity_repo, $customer_service ) {
+	public function __construct( $google_service, $identity_repo, $customer_service, $firebase_service, $rate_limiter, $audit_logger ) {
 		$this->namespace        = 'hyper-web-auth/v1';
 		$this->google_service   = $google_service;
 		$this->identity_repo    = $identity_repo;
 		$this->customer_service = $customer_service;
+		$this->firebase_service = $firebase_service;
+		$this->rate_limiter     = $rate_limiter;
+		$this->audit_logger     = $audit_logger;
 	}
 
 	/**
@@ -80,6 +107,52 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'google_callback' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
+		// --- Firebase Phone Routes ---
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/login/preflight
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/login/preflight',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_login_preflight' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/login/complete
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/login/complete',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_login_complete' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/register/preflight
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/register/preflight',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_register_preflight' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/register/complete
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/register/complete',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_register_complete' ),
 				'permission_callback' => '__return_true', // Public route
 			)
 		);
@@ -316,18 +389,316 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Redirects the user to the WooCommerce login page with an error notice.
+	 * Renders a safe error and redirects back.
 	 *
-	 * @param string $message The error message.
+	 * @since 1.0.0
+	 * @param string $return_to
+	 * @param string $message
+	 * @param string $code
 	 */
-	private function redirect_with_error( $message ) {
-		$login_url = wc_get_page_permalink( 'myaccount' );
-		
-		// Pass the error message via URL parameter so the frontend can display it in the active session.
-		$login_url = add_query_arg( 'hwa_error', urlencode( base64_encode( $message ) ), $login_url );
-		
-		wp_safe_redirect( $login_url );
+	private function redirect_with_error( $return_to, $message, $code = 'hwa_error' ) {
+		// Initialize the WooCommerce session if it doesn't exist, to safely use wc_add_notice.
+		// WC()->session might be null in REST API requests.
+		if ( class_exists( 'WooCommerce' ) ) {
+			if ( ! WC()->session ) {
+				WC()->session = new WC_Session_Handler();
+				WC()->session->init();
+			}
+			wc_add_notice( $message, 'error' );
+		}
+
+		// Fallback to URL parameters if notice doesn't stick
+		$redirect_url = add_query_arg(
+			array(
+				'hwa_error' => $code,
+				'hwa_msg'   => rawurlencode( $message ),
+			),
+			$return_to
+		);
+
+		wp_redirect( $redirect_url );
 		exit;
+	}
+
+	// -------------------------------------------------------------------------
+	// FIREBASE PHONE ENDPOINTS
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Preflight check for phone login.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_login_preflight( $request ) {
+		$phone = $request->get_param( 'phone' );
+		if ( empty( $phone ) ) {
+			return new WP_Error( 'missing_phone', __( 'Phone number is required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+		if ( ! HWA_Security::is_valid_phone( $phone_e164 ) ) {
+			return new WP_Error( 'invalid_phone', __( 'Invalid phone number format.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check rate limits
+		$limit_check = $this->rate_limiter->check_firebase_preflight_limit( $phone_e164, $ip );
+		if ( is_wp_error( $limit_check ) ) {
+			return $limit_check;
+		}
+
+		// Check database identity
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( ! $identity ) {
+			return new WP_Error( 'phone_not_found', __( 'Phone number does not exist. Please sign up.', 'hyper-web-auth' ), array( 'status' => 404 ) );
+		}
+
+		// Success. Record attempt and allow frontend to proceed.
+		$this->rate_limiter->record_firebase_preflight_attempt( $phone_e164, $ip );
+
+		return rest_ensure_response( array(
+			'success' => true,
+			'message' => 'Preflight passed. SMS allowed.',
+		) );
+	}
+
+	/**
+	 * Completes the phone login after Firebase SMS verification.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_login_complete( $request ) {
+		$phone             = $request->get_param( 'phone' );
+		$firebase_id_token = $request->get_param( 'firebase_id_token' );
+		$return_to         = $request->get_param( 'return_to' ) ?: wc_get_page_permalink( 'myaccount' );
+		$return_to         = HWA_Security::safe_redirect_url( $return_to );
+
+		if ( empty( $phone ) || empty( $firebase_id_token ) ) {
+			return new WP_Error( 'missing_params', __( 'Phone and token are required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check IP verification limit
+		$verify_limit = $this->rate_limiter->check_firebase_verification_limit( $ip );
+		if ( is_wp_error( $verify_limit ) ) {
+			return clone clone $verify_limit;
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+
+		try {
+			// Verify token server-side
+			$claims = $this->firebase_service->verify_id_token( $firebase_id_token );
+			
+			// Extract claims
+			$token_phone = $this->firebase_service->get_phone_from_verified_token( $claims );
+			
+			// Assert phones match
+			$this->firebase_service->assert_phone_matches_expected( $token_phone, $phone_e164 );
+
+		} catch ( \Exception $e ) {
+			$this->rate_limiter->record_firebase_verification_failure( $ip );
+			return new WP_Error( 'verification_failed', $e->getMessage(), array( 'status' => 401 ) );
+		}
+
+		// Token is valid and matches requested phone. Find the user.
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( ! $identity ) {
+			return new WP_Error( 'phone_not_found', __( 'Phone number does not exist. Please sign up.', 'hyper-web-auth' ), array( 'status' => 404 ) );
+		}
+
+		// Verify user exists in WP
+		$user = get_userdata( (int) $identity->user_id );
+		if ( ! $user ) {
+			// Orphaned record
+			$this->identity_repo->delete_identity( $identity->id );
+			return new WP_Error( 'user_not_found', __( 'User account deleted or corrupted. Please sign up again.', 'hyper-web-auth' ), array( 'status' => 404 ) );
+		}
+
+		// Login successful!
+		$this->rate_limiter->clear_firebase_verification_failures( $ip );
+		$this->identity_repo->update_firebase_phone_last_login( $identity->id );
+
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true );
+
+		if ( $this->audit_logger ) {
+			$this->audit_logger->log_event(
+				'firebase_phone_login',
+				$user->ID,
+				array(
+					'phone' => HWA_Security::mask_phone( $phone_e164 ),
+					'ip'    => HWA_Security::hash_ip( $ip ),
+				)
+			);
+		}
+
+		return rest_ensure_response( array(
+			'success'      => true,
+			'redirect_url' => $return_to,
+		) );
+	}
+
+	/**
+	 * Preflight check for phone registration.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_register_preflight( $request ) {
+		// Check if registration is enabled
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_registration_enabled' ) ) {
+			return new WP_Error( 'registration_disabled', __( 'Phone registration is disabled.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+		}
+
+		$phone = $request->get_param( 'phone' );
+		if ( empty( $phone ) ) {
+			return new WP_Error( 'missing_phone', __( 'Phone number is required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+		if ( ! HWA_Security::is_valid_phone( $phone_e164 ) ) {
+			return new WP_Error( 'invalid_phone', __( 'Invalid phone number format.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check rate limits
+		$limit_check = $this->rate_limiter->check_firebase_preflight_limit( $phone_e164, $ip );
+		if ( is_wp_error( $limit_check ) ) {
+			return clone $limit_check;
+		}
+
+		// Check database identity
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( $identity ) {
+			return new WP_Error( 'phone_exists', __( 'Phone number already exists. Please login.', 'hyper-web-auth' ), array( 'status' => 409 ) );
+		}
+
+		// Success. Record attempt and allow frontend to proceed.
+		$this->rate_limiter->record_firebase_preflight_attempt( $phone_e164, $ip );
+
+		return rest_ensure_response( array(
+			'success' => true,
+			'message' => 'Preflight passed. SMS allowed.',
+		) );
+	}
+
+	/**
+	 * Completes the phone registration after Firebase SMS verification.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_register_complete( $request ) {
+		// Check if registration is enabled
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_registration_enabled' ) ) {
+			return new WP_Error( 'registration_disabled', __( 'Phone registration is disabled.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+		}
+
+		$phone             = $request->get_param( 'phone' );
+		$firebase_id_token = $request->get_param( 'firebase_id_token' );
+		$email             = $request->get_param( 'email' );
+		$first_name        = $request->get_param( 'first_name' );
+		$last_name         = $request->get_param( 'last_name' );
+		$return_to         = $request->get_param( 'return_to' ) ?: wc_get_page_permalink( 'myaccount' );
+		$return_to         = HWA_Security::safe_redirect_url( $return_to );
+
+		if ( empty( $phone ) || empty( $firebase_id_token ) ) {
+			return new WP_Error( 'missing_params', __( 'Phone and token are required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		if ( empty( $first_name ) || empty( $last_name ) || empty( $email ) ) {
+			return new WP_Error( 'missing_fields', __( 'Name and email are required for registration.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		// Validate email
+		if ( ! is_email( $email ) ) {
+			return new WP_Error( 'invalid_email', __( 'Invalid email address.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		// Check if email already exists in WooCommerce
+		if ( email_exists( $email ) ) {
+			return new WP_Error( 'email_exists', __( 'An account is already registered with your email address. Please log in.', 'hyper-web-auth' ), array( 'status' => 409 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check IP verification limit
+		$verify_limit = $this->rate_limiter->check_firebase_verification_limit( $ip );
+		if ( is_wp_error( $verify_limit ) ) {
+			return clone clone clone clone $verify_limit;
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+
+		try {
+			// Verify token server-side
+			$claims = $this->firebase_service->verify_id_token( $firebase_id_token );
+			
+			// Extract claims
+			$firebase_uid = $this->firebase_service->get_uid_from_verified_token( $claims );
+			$token_phone  = $this->firebase_service->get_phone_from_verified_token( $claims );
+			
+			// Assert phones match
+			$this->firebase_service->assert_phone_matches_expected( $token_phone, $phone_e164 );
+
+		} catch ( \Exception $e ) {
+			$this->rate_limiter->record_firebase_verification_failure( $ip );
+			return new WP_Error( 'verification_failed', $e->getMessage(), array( 'status' => 401 ) );
+		}
+
+		// Double check that phone and UID do not already exist (race condition prevention)
+		if ( $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 ) ) {
+			return new WP_Error( 'phone_exists', __( 'Phone number already exists. Please login.', 'hyper-web-auth' ), array( 'status' => 409 ) );
+		}
+		
+		if ( $this->identity_repo->find_firebase_phone_by_uid( $firebase_uid ) ) {
+			return new WP_Error( 'uid_exists', __( 'Firebase UID is already linked to an account.', 'hyper-web-auth' ), array( 'status' => 409 ) );
+		}
+
+		// Provision the WooCommerce customer
+		$user_id = $this->customer_service->create_customer( $email, $first_name, $last_name );
+
+		if ( is_wp_error( $user_id ) ) {
+			return $user_id;
+		}
+
+		// Link the identity
+		$identity_id = $this->identity_repo->create_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164, true );
+
+		if ( ! $identity_id ) {
+			return new WP_Error( 'identity_creation_failed', __( 'Failed to link phone number to new account.', 'hyper-web-auth' ), array( 'status' => 500 ) );
+		}
+
+		// Registration and link successful. Log them in!
+		$this->rate_limiter->clear_firebase_verification_failures( $ip );
+		
+		wp_set_current_user( $user_id );
+		wp_set_auth_cookie( $user_id, true );
+
+		if ( $this->audit_logger ) {
+			$this->audit_logger->log_event(
+				'firebase_phone_register',
+				$user_id,
+				array(
+					'phone' => HWA_Security::mask_phone( $phone_e164 ),
+					'ip'    => HWA_Security::hash_ip( $ip ),
+				)
+			);
+		}
+
+		return rest_ensure_response( array(
+			'success'      => true,
+			'redirect_url' => $return_to,
+		) );
 	}
 
 }

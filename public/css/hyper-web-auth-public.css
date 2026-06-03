@@ -57,3 +57,46 @@
     text-align: center;
     flex-grow: 1;
 }
+
+/* Firebase Phone Authentication */
+.hwa-phone-auth-container {
+    margin: 20px 0;
+    padding-top: 10px;
+}
+
+.hwa-phone-separator {
+    text-align: center;
+    color: #777;
+    margin: 20px 0;
+    font-size: 0.9em;
+    text-transform: uppercase;
+}
+
+.hwa-phone-form .hwa-hidden {
+    display: none !important;
+}
+
+.hwa-phone-form .hwa-help-text {
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 4px;
+}
+
+.hwa-phone-form .hwa-consent-text {
+    font-size: 0.85em;
+    color: #777;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.hwa-phone-form .woocommerce-error {
+    margin-bottom: 15px;
+}
+
+/* Ensure reCAPTCHA container clears floats and renders nicely */
+#hwa-recaptcha-login-container,
+#hwa-recaptcha-register-container {
+    margin-top: 15px;
+    min-height: 20px; /* Space for the invisible recaptcha badge if it renders inline */
+}

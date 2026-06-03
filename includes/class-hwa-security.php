@@ -96,10 +96,9 @@ class HWA_Security {
 	 * @return array|WP_Error Array of token claims on success, WP_Error on failure.
 	 */
 	public static function verify_firebase_jwt( $id_token ) {
-		// TODO: Implement with Kreait Firebase PHP SDK in Phase 2.
 		return new WP_Error(
-			'not_implemented',
-			__( 'Firebase JWT verification is not yet implemented.', 'hyper-web-auth' ),
+			'deprecated',
+			__( 'verify_firebase_jwt() is deprecated. Use HWA_Firebase_Auth_Service->verify_id_token() instead.', 'hyper-web-auth' ),
 			array( 'status' => 501 )
 		);
 	}
@@ -155,12 +154,28 @@ class HWA_Security {
 	 * @return string Normalized phone string.
 	 */
 	public static function normalize_phone( $phone ) {
-		// Remove everything except plus sign and digits
+		// Remove everything except plus sign and digits.
 		$normalized = preg_replace( '/[^+\d]/', '', $phone );
-		
-		// If it doesn't start with a +, and it's not empty, we assume it needs a default country code later,
-		// but for pure normalization we just ensure we only have valid chars.
-		return $normalized;
+
+		if ( empty( $normalized ) ) {
+			return '';
+		}
+
+		// If it already starts with '+', treat as E.164-like input — nothing to prepend.
+		if ( strpos( $normalized, '+' ) === 0 ) {
+			return $normalized;
+		}
+
+		// Does not start with '+' — prepend the configured default country code.
+		$default_code = HWA_Settings::get_setting( 'firebase_default_country_code', '+91' );
+
+		// Strip any non-digit/non-plus from the code itself, ensure it starts with '+'.
+		$default_code = preg_replace( '/[^+\d]/', '', $default_code );
+		if ( strpos( $default_code, '+' ) !== 0 ) {
+			$default_code = '+' . $default_code;
+		}
+
+		return $default_code . $normalized;
 	}
 
 	/**
@@ -189,6 +204,31 @@ class HWA_Security {
 			$fallback = home_url();
 		}
 		return wp_validate_redirect( $url, $fallback );
+	}
+
+	/**
+	 * Masks a phone number for safe logging (e.g., +15551234567 -> +1******4567).
+	 *
+	 * @since 1.0.0
+	 * @param string $phone The E.164 formatted phone number.
+	 * @return string The masked phone number.
+	 */
+	public static function mask_phone( $phone ) {
+		if ( empty( $phone ) ) {
+			return '';
+		}
+
+		// Minimum length to mask meaningfully (e.g. at least country code + 4 digits)
+		if ( strlen( $phone ) < 8 ) {
+			return str_repeat( '*', strlen( $phone ) );
+		}
+
+		// Keep the first 2 characters (e.g., '+1') and the last 4 digits
+		$start = substr( $phone, 0, 2 );
+		$end   = substr( $phone, -4 );
+		$mask  = str_repeat( '*', strlen( $phone ) - 6 );
+
+		return $start . $mask . $end;
 	}
 
 }

@@ -167,28 +167,139 @@ class HWA_Identity_Repository {
 
 	/**
 	 * Finds a Firebase phone identity by phone number.
-	 * Placeholder for Phase 2.
 	 *
 	 * @since  1.0.0
 	 * @param  string $phone_e164 Normalized E.164 phone number.
 	 * @return object|null
 	 */
 	public function find_firebase_phone_by_phone( $phone_e164 ) {
-		// TODO: Implement in Phase 2
-		return null;
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+		$phone_hash = HWA_Security::hash_phone( $phone_e164 );
+
+		$query = $wpdb->prepare(
+			"SELECT * FROM $table_name WHERE provider = 'firebase_phone' AND phone_hash = %s LIMIT 1",
+			$phone_hash
+		);
+
+		return $wpdb->get_row( $query );
 	}
 
 	/**
 	 * Finds a Firebase phone identity by Firebase UID.
-	 * Placeholder for Phase 2.
 	 *
 	 * @since  1.0.0
 	 * @param  string $firebase_uid Firebase UID.
 	 * @return object|null
 	 */
 	public function find_firebase_phone_by_uid( $firebase_uid ) {
-		// TODO: Implement in Phase 2
-		return null;
+		global $wpdb;
+
+		$table_name    = $wpdb->prefix . 'hwa_identities';
+		$identity_hash = HWA_Security::hash_identity( $firebase_uid );
+
+		$query = $wpdb->prepare(
+			"SELECT * FROM $table_name WHERE provider = 'firebase_phone' AND identity_hash = %s LIMIT 1",
+			$identity_hash
+		);
+
+		return $wpdb->get_row( $query );
+	}
+
+	/**
+	 * Creates a new Firebase Phone identity linked to a user.
+	 *
+	 * @since  1.0.0
+	 * @param  int    $user_id      The WooCommerce user ID.
+	 * @param  string $firebase_uid The Firebase UID.
+	 * @param  string $phone_e164   The normalized phone number.
+	 * @param  bool   $verified     Whether the phone is verified (usually true).
+	 * @return int|false The new identity ID, or false on failure.
+	 */
+	public function create_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164, $verified = true ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$data = array(
+			'user_id'          => $user_id,
+			'provider'         => 'firebase_phone',
+			'identity_hash'    => HWA_Security::hash_identity( $firebase_uid ),
+			'identity_display' => $phone_e164,
+			'provider_uid'     => $firebase_uid,
+			'phone_e164'       => $phone_e164,
+			'phone_hash'       => HWA_Security::hash_phone( $phone_e164 ),
+			'is_verified'      => $verified ? 1 : 0,
+			'status'           => 'active',
+			'linked_at'        => current_time( 'mysql' ),
+			'last_login_at'    => current_time( 'mysql' ),
+		);
+
+		$format = array(
+			'%d', // user_id
+			'%s', // provider
+			'%s', // identity_hash
+			'%s', // identity_display
+			'%s', // provider_uid
+			'%s', // phone_e164
+			'%s', // phone_hash
+			'%d', // is_verified
+			'%s', // status
+			'%s', // linked_at
+			'%s', // last_login_at
+		);
+
+		$result = $wpdb->insert( $table_name, $data, $format );
+
+		if ( false === $result ) {
+			return false;
+		}
+
+		return $wpdb->insert_id;
+	}
+
+	/**
+	 * Finds the Firebase phone identity linked to a specific user.
+	 *
+	 * @since  1.0.0
+	 * @param  int $user_id The WooCommerce user ID.
+	 * @return object|null
+	 */
+	public function find_user_firebase_phone_identity( $user_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$query = $wpdb->prepare(
+			"SELECT * FROM $table_name WHERE user_id = %d AND provider = 'firebase_phone' LIMIT 1",
+			$user_id
+		);
+
+		return $wpdb->get_row( $query );
+	}
+
+	/**
+	 * Updates the last login timestamp for a Firebase phone identity.
+	 *
+	 * @since  1.0.0
+	 * @param  int $identity_id The ID of the identity row.
+	 * @return bool True on success, false on failure.
+	 */
+	public function update_firebase_phone_last_login( $identity_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$result = $wpdb->update(
+			$table_name,
+			array( 'last_login_at' => current_time( 'mysql' ) ),
+			array( 'id' => $identity_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+
+		return false !== $result;
 	}
 
 	/**

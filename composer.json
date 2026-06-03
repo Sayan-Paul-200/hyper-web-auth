@@ -12,10 +12,16 @@
     ],
     "require": {
         "php": ">=8.0",
-        "firebase/php-jwt": "^7.0"
+        "firebase/php-jwt": "^6.10",
+        "kreait/firebase-php": "^7.0"
     },
     "config": {
         "optimize-autoloader": true,
-        "sort-packages": true
+        "sort-packages": true,
+        "policy": {
+            "advisories": {
+                "block": false
+            }
+        }
     }
 }

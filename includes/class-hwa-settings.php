@@ -85,6 +85,28 @@ class HWA_Settings {
 		if ( 'google_redirect_uri' === $key ) {
 			return rest_url( 'hyper-web-auth/v1/google/callback' );
 		}
+		if ( 'firebase_authorized_domain' === $key ) {
+			return parse_url( home_url(), PHP_URL_HOST );
+		}
+		if ( 'firebase_service_account_status' === $key ) {
+			if ( defined( 'HWA_FIREBASE_SERVICE_ACCOUNT_JSON' ) && ! empty( HWA_FIREBASE_SERVICE_ACCOUNT_JSON ) ) {
+				return __( '✅ Loaded from wp-config.php constant (HWA_FIREBASE_SERVICE_ACCOUNT_JSON)', 'hyper-web-auth' );
+			}
+			if ( defined( 'HWA_FIREBASE_SERVICE_ACCOUNT_PATH' ) && ! empty( HWA_FIREBASE_SERVICE_ACCOUNT_PATH ) ) {
+				if ( file_exists( HWA_FIREBASE_SERVICE_ACCOUNT_PATH ) ) {
+					return __( '✅ Loaded from wp-config.php constant path (HWA_FIREBASE_SERVICE_ACCOUNT_PATH)', 'hyper-web-auth' );
+				}
+				return __( '❌ Constant path defined but file does not exist', 'hyper-web-auth' );
+			}
+			$setting_path = get_option( self::OPTION_KEY, array() )['firebase_service_account_path'] ?? '';
+			if ( ! empty( $setting_path ) ) {
+				if ( file_exists( $setting_path ) ) {
+					return __( '✅ Loaded from settings path', 'hyper-web-auth' );
+				}
+				return __( '❌ Settings path defined but file does not exist', 'hyper-web-auth' );
+			}
+			return __( '❌ Not configured — Firebase token verification will not work', 'hyper-web-auth' );
+		}
 
 		// 2. Check saved options array.
 		$settings = get_option( self::OPTION_KEY, array() );
@@ -97,11 +119,20 @@ class HWA_Settings {
 			'google_enabled'                      => 'no',
 			'google_auto_create_customer'         => 'yes',
 			'google_match_existing_email'         => 'no',
+			
 			'firebase_phone_enabled'              => 'no',
 			'firebase_phone_registration_enabled' => 'yes',
+			'firebase_api_key'                    => '',
+			'firebase_auth_domain'                => '',
+			'firebase_project_id'                 => '',
+			'firebase_app_id'                     => '',
+			'firebase_messaging_sender_id'        => '',
+			'firebase_measurement_id'             => '',
+			'firebase_service_account_path'       => '',
 			'firebase_default_country_code'       => '+91',
 			'firebase_recaptcha_mode'             => 'invisible',
-			'firebase_use_test_numbers_notice'    => 'yes',
+			'firebase_consent_text'               => __( 'By continuing, you agree to receive SMS verification codes. Message and data rates may apply.', 'hyper-web-auth' ),
+			
 			'account_linking_enabled'             => 'no',
 			'delete_data_on_uninstall'            => 'no',
 			'debug_logging'                       => 'no',
@@ -167,7 +198,7 @@ class HWA_Settings {
 			}
 
 			// Read-only fields shouldn't be saved.
-			if ( 'hwa_google_redirect_uri' === $field['id'] ) {
+			if ( in_array( $field['id'], array( 'hwa_google_redirect_uri', 'hwa_firebase_authorized_domain', 'hwa_firebase_service_account_status' ), true ) ) {
 				continue;
 			}
 
@@ -260,12 +291,118 @@ class HWA_Settings {
 			array(
 				'title' => __( 'Firebase Phone Auth', 'hyper-web-auth' ),
 				'type'  => 'title',
-				'desc'  => __( 'Configure Firebase Phone Number Sign-In settings. (Implemented in Phase 2)', 'hyper-web-auth' ),
+				'desc'  => __( '<strong>Phase 2 Setup:</strong> Configure your Firebase project before enabling this feature.<br/><br/>
+					1. Go to the <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a> and create a project.<br/>
+					2. Under <strong>Authentication > Sign-in method</strong>, enable the <strong>Phone</strong> provider.<br/>
+					3. Under <strong>Authentication > Settings > Authorized domains</strong>, add the domain shown below.<br/>
+					4. Under <strong>Project Settings > General</strong>, create a Web App and copy the SDK configuration values below.', 'hyper-web-auth' ),
 				'id'    => 'hwa_firebase_title',
 			),
 			array(
-				'type' => 'sectionend',
-				'id'   => 'hwa_firebase_title',
+				'title'   => __( 'Enable Firebase Phone Auth', 'hyper-web-auth' ),
+				'desc'    => __( 'Allow users to log in using an SMS OTP.', 'hyper-web-auth' ),
+				'id'      => 'hwa_firebase_phone_enabled',
+				'type'    => 'checkbox',
+				'default' => 'no',
+			),
+			array(
+				'title'   => __( 'Enable Phone Registration', 'hyper-web-auth' ),
+				'desc'    => __( 'Allow new users to create accounts using their phone number.', 'hyper-web-auth' ),
+				'id'      => 'hwa_firebase_phone_registration_enabled',
+				'type'    => 'checkbox',
+				'default' => 'yes',
+			),
+			array(
+				'title'             => __( 'Your Site Domain', 'hyper-web-auth' ),
+				'desc'              => __( 'Add this domain to your Firebase Authorized Domains list.', 'hyper-web-auth' ),
+				'id'                => 'hwa_firebase_authorized_domain',
+				'type'              => 'text',
+				'css'               => 'min-width:400px; background-color:#f0f0f1;',
+				'custom_attributes' => array(
+					'readonly' => 'readonly',
+				),
+			),
+			array(
+				'title' => __( 'Firebase API Key', 'hyper-web-auth' ),
+				'desc'  => __( 'Found in your Firebase Web App config.', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_api_key',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Firebase Auth Domain', 'hyper-web-auth' ),
+				'desc'  => __( 'e.g., your-project.firebaseapp.com', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_auth_domain',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Firebase Project ID', 'hyper-web-auth' ),
+				'desc'  => __( 'Found in Firebase Project Settings.', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_project_id',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Firebase App ID', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_app_id',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Messaging Sender ID', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_messaging_sender_id',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Measurement ID', 'hyper-web-auth' ),
+				'desc'  => __( '(Optional)', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_measurement_id',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title' => __( 'Service Account JSON Path', 'hyper-web-auth' ),
+				'desc'  => __( 'Absolute path on the server to your Firebase service account JSON file. This is required for verifying tokens securely. Recommended to place outside the web root.', 'hyper-web-auth' ),
+				'id'    => 'hwa_firebase_service_account_path',
+				'type'  => 'text',
+				'css'   => 'min-width:400px;',
+			),
+			array(
+				'title'             => __( 'Service Account Status', 'hyper-web-auth' ),
+				'desc'              => __( 'Status of the backend token verification credentials.', 'hyper-web-auth' ),
+				'id'                => 'hwa_firebase_service_account_status',
+				'type'              => 'text',
+				'css'               => 'min-width:400px; background-color:#f0f0f1;',
+				'custom_attributes' => array(
+					'readonly' => 'readonly',
+				),
+			),
+			array(
+				'title'   => __( 'Default Country Code', 'hyper-web-auth' ),
+				'desc'    => __( 'The default country dialing code if the user does not enter one.', 'hyper-web-auth' ),
+				'id'      => 'hwa_firebase_default_country_code',
+				'type'    => 'text',
+				'default' => '+91',
+			),
+			array(
+				'title'   => __( 'reCAPTCHA Mode', 'hyper-web-auth' ),
+				'desc'    => __( 'Choose how Firebase reCAPTCHA is displayed during phone login.', 'hyper-web-auth' ),
+				'id'      => 'hwa_firebase_recaptcha_mode',
+				'type'    => 'select',
+				'options' => array(
+					'invisible' => __( 'Invisible (Recommended)', 'hyper-web-auth' ),
+					'normal'    => __( 'Visible Checkbox', 'hyper-web-auth' ),
+				),
+				'default' => 'invisible',
+			),
+			array(
+				'title'   => __( 'Privacy / Consent Text', 'hyper-web-auth' ),
+				'desc'    => __( 'Text displayed below the phone number input informing users about SMS processing.', 'hyper-web-auth' ),
+				'id'      => 'hwa_firebase_consent_text',
+				'type'    => 'textarea',
+				'css'     => 'width:100%; height:80px;',
 			),
 
 			array(
@@ -296,29 +433,62 @@ class HWA_Settings {
 	}
 
 	/**
-	 * Display admin notices if Google is enabled but credentials are missing.
+	 * Display admin notices if providers are enabled but credentials are missing.
 	 *
 	 * @since 1.0.0
 	 */
 	public function admin_notices() {
-		if ( 'yes' !== self::get_setting( 'google_enabled' ) ) {
-			return;
+		$settings_url = admin_url( 'admin.php?page=wc-settings&tab=hyper_web_auth' );
+
+		// Check Google OAuth configuration
+		if ( 'yes' === self::get_setting( 'google_enabled' ) ) {
+			$google_client = self::get_setting( 'google_client_id' );
+			$google_secret = self::get_setting( 'google_client_secret' );
+
+			if ( empty( $google_client ) || empty( $google_secret ) ) {
+				?>
+				<div class="notice notice-error is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'Hyper Web Auth Configuration Error:', 'hyper-web-auth' ); ?></strong>
+						<?php esc_html_e( 'Google Login is enabled, but the Client ID or Client Secret is missing. Google Login will not work on the frontend.', 'hyper-web-auth' ); ?>
+						<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Configure Settings', 'hyper-web-auth' ); ?></a>
+					</p>
+				</div>
+				<?php
+			}
 		}
 
-		$client_id = self::get_setting( 'google_client_id' );
-		$secret    = self::get_setting( 'google_client_secret' );
+		// Check Firebase Phone Auth configuration
+		if ( 'yes' === self::get_setting( 'firebase_phone_enabled' ) ) {
+			$firebase_key     = self::get_setting( 'firebase_api_key' );
+			$firebase_domain  = self::get_setting( 'firebase_auth_domain' );
+			$firebase_project = self::get_setting( 'firebase_project_id' );
 
-		if ( empty( $client_id ) || empty( $secret ) ) {
-			$settings_url = admin_url( 'admin.php?page=wc-settings&tab=hyper_web_auth' );
-			?>
-			<div class="notice notice-error is-dismissible">
-				<p>
-					<strong><?php esc_html_e( 'Hyper Web Auth Configuration Error:', 'hyper-web-auth' ); ?></strong>
-					<?php esc_html_e( 'Google Login is enabled, but the Client ID or Client Secret is missing. Google Login will not work on the frontend.', 'hyper-web-auth' ); ?>
-					<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Configure Settings', 'hyper-web-auth' ); ?></a>
-				</p>
-			</div>
-			<?php
+			if ( empty( $firebase_key ) || empty( $firebase_domain ) || empty( $firebase_project ) ) {
+				?>
+				<div class="notice notice-error is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'Hyper Web Auth Configuration Error:', 'hyper-web-auth' ); ?></strong>
+						<?php esc_html_e( 'Firebase Phone Auth is enabled, but critical API keys/domains are missing. Phone login will not work.', 'hyper-web-auth' ); ?>
+						<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Configure Settings', 'hyper-web-auth' ); ?></a>
+					</p>
+				</div>
+				<?php
+			}
+
+			// Check service account status
+			$sa_status = self::get_setting( 'firebase_service_account_status' );
+			if ( strpos( (string) $sa_status, '❌' ) !== false ) {
+				?>
+				<div class="notice notice-error is-dismissible">
+					<p>
+						<strong><?php esc_html_e( 'Hyper Web Auth Configuration Error:', 'hyper-web-auth' ); ?></strong>
+						<?php esc_html_e( 'Firebase Phone Auth is enabled, but the Service Account is not properly configured. Server-side token verification will fail.', 'hyper-web-auth' ); ?>
+						<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Configure Settings', 'hyper-web-auth' ); ?></a>
+					</p>
+				</div>
+				<?php
+			}
 		}
 	}
 
