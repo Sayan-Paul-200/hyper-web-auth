@@ -211,15 +211,20 @@ class Hyper_Web_Auth_Admin {
 											</td>
 											<td><?php echo esc_html( get_date_from_gmt( $identity->linked_at, get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ); ?></td>
 											<td>
-												<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-													<?php wp_nonce_field( 'hwa_admin_unlink_' . $identity->id ); ?>
-													<input type="hidden" name="action" value="hwa_admin_unlink_identity">
-													<input type="hidden" name="identity_id" value="<?php echo esc_attr( $identity->id ); ?>">
-													<input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>">
-													<button type="submit" class="button button-small button-link-delete" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to unlink this identity?', 'hyper-web-auth' ); ?>');" style="color: #dc3232;">
-														<?php esc_html_e( 'Unlink', 'hyper-web-auth' ); ?>
-													</button>
-												</form>
+												<?php
+												$unlink_url = add_query_arg(
+													array(
+														'action'      => 'hwa_admin_unlink_identity',
+														'identity_id' => $identity->id,
+														'user_id'     => $user->ID,
+													),
+													admin_url( 'admin-post.php' )
+												);
+												$unlink_url = wp_nonce_url( $unlink_url, 'hwa_admin_unlink_' . $identity->id );
+												?>
+												<a href="<?php echo esc_url( $unlink_url ); ?>" class="button button-small" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to unlink this identity?', 'hyper-web-auth' ); ?>');" style="color: #dc3232; border-color: #dc3232;">
+													<?php esc_html_e( 'Unlink', 'hyper-web-auth' ); ?>
+												</a>
 											</td>
 										</tr>
 									<?php endforeach; ?>
@@ -243,8 +248,8 @@ class Hyper_Web_Auth_Admin {
 			wp_die( esc_html__( 'Unauthorized.', 'hyper-web-auth' ) );
 		}
 
-		$identity_id = isset( $_POST['identity_id'] ) ? absint( $_POST['identity_id'] ) : 0;
-		$user_id     = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
+		$identity_id = isset( $_REQUEST['identity_id'] ) ? absint( $_REQUEST['identity_id'] ) : 0;
+		$user_id     = isset( $_REQUEST['user_id'] ) ? absint( $_REQUEST['user_id'] ) : 0;
 
 		check_admin_referer( 'hwa_admin_unlink_' . $identity_id );
 
