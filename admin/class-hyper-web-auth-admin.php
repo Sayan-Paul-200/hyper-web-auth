@@ -100,4 +100,43 @@ class Hyper_Web_Auth_Admin {
 
 	}
 
+	/**
+	 * Register the admin menu for Auth Logs.
+	 *
+	 * @since 1.0.0
+	 */
+	public function add_plugin_admin_menu() {
+		add_users_page(
+			__( 'Authentication Logs', 'hyper-web-auth' ),
+			__( 'Auth Logs', 'hyper-web-auth' ),
+			'edit_users',
+			'hwa-auth-logs',
+			array( $this, 'display_auth_logs_page' )
+		);
+	}
+
+	/**
+	 * Render the Auth Logs page content.
+	 *
+	 * @since 1.0.0
+	 */
+	public function display_auth_logs_page() {
+		require_once plugin_dir_path( __FILE__ ) . 'class-hwa-auth-logs-list-table.php';
+		
+		$list_table = new HWA_Auth_Logs_List_Table();
+		$list_table->prepare_items();
+
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Authentication Logs', 'hyper-web-auth' ); ?></h1>
+			<hr class="wp-header-end">
+			
+			<form id="hwa-auth-logs-filter" method="get">
+				<input type="hidden" name="page" value="<?php echo esc_attr( $_REQUEST['page'] ); ?>" />
+				<?php $list_table->display(); ?>
+			</form>
+		</div>
+		<?php
+	}
+
 }

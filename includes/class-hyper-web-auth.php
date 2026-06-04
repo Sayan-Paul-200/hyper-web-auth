@@ -279,6 +279,9 @@ class Hyper_Web_Auth {
 		// Admin notices for settings
 		$this->loader->add_action( 'admin_notices', $this->settings, 'admin_notices' );
 
+		// Admin menus (Auth Logs)
+		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_plugin_admin_menu' );
+
 	}
 
 	/**
