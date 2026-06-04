@@ -11,8 +11,10 @@
 		// Check if we actually have the forms on this page
 		const $loginForm = $('#hwa-phone-login-form');
 		const $registerForm = $('#hwa-phone-register-form');
+		const $linkContainer = $('#hwa-phone-link-container');
+		const $checkoutBanner = $('.hwa-checkout-login-banner');
 
-		if ( $loginForm.length === 0 && $registerForm.length === 0 ) {
+		if ( $loginForm.length === 0 && $registerForm.length === 0 && $linkContainer.length === 0 && $checkoutBanner.length === 0 ) {
 			return;
 		}
 
