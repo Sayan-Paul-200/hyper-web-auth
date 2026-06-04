@@ -49,8 +49,7 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 				</td>
 				<td>
 					<?php if ( $google_identity ) : ?>
-						<!-- Unlinking to be implemented in Phase 3.4 -->
-						<button class="button" disabled><?php esc_html_e( 'Unlink Google', 'hyper-web-auth' ); ?></button>
+						<button class="button hwa-btn-unlink" data-provider="google"><?php esc_html_e( 'Unlink Google', 'hyper-web-auth' ); ?></button>
 					<?php else : ?>
 						<a href="<?php echo esc_url( $google_link_url ); ?>" class="button"><?php esc_html_e( 'Link Google', 'hyper-web-auth' ); ?></a>
 					<?php endif; ?>
@@ -74,7 +73,8 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 				</td>
 				<td>
 					<?php if ( $phone_identity ) : ?>
-						<!-- Unlinking/Changing to be implemented in Phase 3.4 -->
+						<button class="button hwa-btn-unlink" data-provider="firebase_phone" style="margin-right: 8px;"><?php esc_html_e( 'Unlink Phone', 'hyper-web-auth' ); ?></button>
+						<!-- Changing phone to be implemented later -->
 						<button class="button" disabled><?php esc_html_e( 'Change Phone', 'hyper-web-auth' ); ?></button>
 					<?php else : ?>
 						<!-- Linking phone to be implemented in Phase 3.3 -->

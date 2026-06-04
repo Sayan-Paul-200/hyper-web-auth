@@ -169,6 +169,17 @@ class HWA_REST_Controller extends WP_REST_Controller {
 				'permission_callback' => 'is_user_logged_in', // Must be logged in
 			)
 		);
+
+		// Route: /wp-json/hyper-web-auth/v1/unlink
+		register_rest_route(
+			$this->namespace,
+			'/unlink',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'unlink_identity' ),
+				'permission_callback' => 'is_user_logged_in', // Must be logged in
+			)
+		);
 	}
 
 	/**
@@ -837,6 +848,72 @@ class HWA_REST_Controller extends WP_REST_Controller {
 
 		return rest_ensure_response( array(
 			'success'  => true,
+		) );
+	}
+
+	/**
+	 * Unlinks an identity from the current user.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function unlink_identity( $request ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return new WP_Error( 'not_logged_in', __( 'You must be logged in to unlink an account.', 'hyper-web-auth' ), array( 'status' => 401 ) );
+		}
+
+		$provider = $request->get_param( 'provider' );
+		if ( ! in_array( $provider, array( 'google', 'firebase_phone' ), true ) ) {
+			return new WP_Error( 'invalid_provider', __( 'Invalid authentication provider.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Fetch all identities for this user to evaluate lockout risk.
+		$google_identity = $this->identity_repo->find_user_google_identity( $user_id );
+		$phone_identity  = $this->identity_repo->find_user_firebase_phone_identity( $user_id );
+
+		$identities_count = 0;
+		if ( $google_identity ) $identities_count++;
+		if ( $phone_identity )  $identities_count++;
+
+		// Determine which identity the user wants to unlink.
+		$target_identity_id = null;
+		if ( 'google' === $provider && $google_identity ) {
+			$target_identity_id = $google_identity->id;
+		} elseif ( 'firebase_phone' === $provider && $phone_identity ) {
+			$target_identity_id = $phone_identity->id;
+		}
+
+		if ( ! $target_identity_id ) {
+			return new WP_Error( 'identity_not_found', __( 'This login method is not linked to your account.', 'hyper-web-auth' ), array( 'status' => 404 ) );
+		}
+
+		// --- Lockout Prevention Safety Check ---
+		if ( $identities_count <= 1 ) {
+			// This is their ONLY external identity. Check their email.
+			$user = get_userdata( $user_id );
+			$email = $user->user_email;
+			
+			// Does the email start with our auto-generated placeholder format?
+			if ( strpos( $email, 'phone.' ) === 0 && strpos( $email, '@' ) !== false ) {
+				HWA_Database::log_auth_event( $user_id, $provider, 'unlink_failed', 'failed', $ip, 'Unlink blocked by lockout prevention.' );
+				return new WP_Error( 'lockout_risk', __( 'You cannot unlink your only login method because you do not have an email address set for password recovery. Please link another method or update your email first.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+			}
+		}
+
+		// Proceed with unlinking.
+		$deleted = $this->identity_repo->delete_identity( $target_identity_id );
+
+		if ( ! $deleted ) {
+			return new WP_Error( 'delete_failed', __( 'Could not remove the linked account due to a database error.', 'hyper-web-auth' ), array( 'status' => 500 ) );
+		}
+
+		HWA_Database::log_auth_event( $user_id, $provider, 'unlink_success', 'success', $ip, 'Successfully unlinked ' . $provider . ' identity.' );
+
+		return rest_ensure_response( array(
+			'success' => true,
 		) );
 	}
 

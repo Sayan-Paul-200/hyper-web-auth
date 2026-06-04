@@ -425,6 +425,45 @@
 						});
 				});
 			}
+
+			// -------------------------------------------------------------------
+			// UNLINK FLOW
+			// -------------------------------------------------------------------
+			$('.hwa-btn-unlink').on('click', function(e) {
+				e.preventDefault();
+				const $btn = $(this);
+				const provider = $btn.data('provider');
+				
+				const isConfirmed = confirm(hwaFirebaseConfig.strings.confirm_unlink || "Are you sure you want to unlink this login method?\n\nIf you don't know your password, you may be locked out of your account.");
+				
+				if ( ! isConfirmed ) {
+					return;
+				}
+
+				const originalText = $btn.text();
+				$btn.prop('disabled', true).text('Unlinking...');
+
+				$.ajax({
+					url: hwaFirebaseConfig.apiBase + 'unlink',
+					method: 'POST',
+					data: {
+						provider: provider,
+						_wpnonce: hwaFirebaseConfig.nonce
+					},
+					success: function(response) {
+						if ( response.success ) {
+							alert("Successfully unlinked!");
+							window.location.reload();
+						}
+					},
+					error: function(xhr) {
+						const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+						alert("Unlink Failed:\n" + msg);
+						$btn.prop('disabled', false).text(originalText);
+					}
+				});
+			});
+
 		});
 
 	});
