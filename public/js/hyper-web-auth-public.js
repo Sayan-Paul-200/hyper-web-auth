@@ -448,7 +448,7 @@
 				$btn.prop('disabled', true).text('Unlinking...');
 
 				$.ajax({
-					url: hwaFirebaseConfig.apiBase + 'unlink',
+					url: hwaFirebaseConfig.apiRoot + 'unlink',
 					method: 'POST',
 					data: {
 						provider: provider,

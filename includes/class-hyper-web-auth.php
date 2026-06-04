@@ -111,6 +111,15 @@ class Hyper_Web_Auth {
 	 */
 	public $customer_service;
 
+	/**
+	 * The My Account integration.
+	 *
+	 * @since    1.0.0
+	 * @access   public
+	 * @var      HWA_My_Account
+	 */
+	public $my_account;
+
 
 	/**
 	 * Define the core functionality of the plugin.

@@ -110,6 +110,7 @@ class Hyper_Web_Auth_Public {
 			'recaptchaMode'      => HWA_Settings::get_setting( 'firebase_recaptcha_mode', 'invisible' ),
 			'defaultCountryCode' => HWA_Settings::get_setting( 'firebase_default_country_code', '+91' ),
 			'apiBase'            => rest_url( 'hyper-web-auth/v1/firebase-phone/' ),
+			'apiRoot'            => rest_url( 'hyper-web-auth/v1/' ),
 			'nonce'              => wp_create_nonce( 'wp_rest' ),
 			'strings'            => array(
 				'invalid_phone'  => __( 'Please enter a valid phone number.', 'hyper-web-auth' ),
