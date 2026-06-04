@@ -188,4 +188,26 @@ CREATE TABLE {$wpdb->prefix}hwa_auth_logs (
 
 		return $deleted !== false ? (int) $deleted : 0;
 	}
+
+	/**
+	 * Deletes all authentication logs for a specific user ID.
+	 * Used for GDPR erasure requests.
+	 *
+	 * @since  1.0.0
+	 * @param  int $user_id The WooCommerce user ID.
+	 * @return bool True on success, false on failure.
+	 */
+	public static function delete_logs_for_user( $user_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_auth_logs';
+
+		$result = $wpdb->delete(
+			$table_name,
+			array( 'user_id' => $user_id ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
 }

@@ -216,7 +216,12 @@ class Hyper_Web_Auth {
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-oauth-state-repository.php';
 
 		/**
-		 * Authentication services.
+		 * The class responsible for handling GDPR and Privacy workflows.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-privacy.php';
+
+		/**
+		 * The classes responsible for coordinating with external providers.
 		 */
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-google-oauth-service.php';
 		require_once HYPER_WEB_AUTH_PATH . 'includes/class-hwa-firebase-auth-service.php';
@@ -287,6 +292,10 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'show_user_profile', $plugin_admin, 'render_user_profile_identities' );
 		$this->loader->add_action( 'edit_user_profile', $plugin_admin, 'render_user_profile_identities' );
 		$this->loader->add_action( 'admin_post_hwa_admin_unlink_identity', $plugin_admin, 'handle_admin_unlink_identity' );
+
+		// Privacy and GDPR Tools
+		$plugin_privacy = new HWA_Privacy();
+		$plugin_privacy->init();
 
 	}
 
