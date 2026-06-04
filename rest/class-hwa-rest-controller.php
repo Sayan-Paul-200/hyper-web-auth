@@ -383,11 +383,15 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	 * Renders a safe error and redirects back.
 	 *
 	 * @since 1.0.0
-	 * @param string $return_to
 	 * @param string $message
+	 * @param string $return_to
 	 * @param string $code
 	 */
-	private function redirect_with_error( $return_to, $message, $code = 'hwa_error' ) {
+	private function redirect_with_error( $message, $return_to = '', $code = 'hwa_error' ) {
+		if ( empty( $return_to ) ) {
+			$return_to = wc_get_page_permalink( 'myaccount' );
+		}
+
 		// Initialize the WooCommerce session if it doesn't exist, to safely use wc_add_notice.
 		// WC()->session might be null in REST API requests.
 		if ( class_exists( 'WooCommerce' ) ) {
