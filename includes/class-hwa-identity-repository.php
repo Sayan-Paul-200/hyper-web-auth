@@ -325,6 +325,26 @@ class HWA_Identity_Repository {
 	}
 
 	/**
+	 * Retrieves all linked identities for a specific WordPress user ID.
+	 *
+	 * @since  1.0.0
+	 * @param  int $user_id The WooCommerce user ID.
+	 * @return array Array of identity objects.
+	 */
+	public function get_all_identities_for_user( $user_id ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+
+		$query = $wpdb->prepare(
+			"SELECT * FROM $table_name WHERE user_id = %d ORDER BY linked_at ASC",
+			$user_id
+		);
+
+		return $wpdb->get_results( $query );
+	}
+
+	/**
 	 * Deletes all identity records associated with a specific WordPress user ID.
 	 *
 	 * @since  1.0.0

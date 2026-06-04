@@ -278,9 +278,15 @@ class Hyper_Web_Auth {
 
 		// Admin notices for settings
 		$this->loader->add_action( 'admin_notices', $this->settings, 'admin_notices' );
+		$this->loader->add_action( 'admin_notices', $plugin_admin, 'display_admin_notices' );
 
 		// Admin menus (Auth Logs)
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_plugin_admin_menu' );
+
+		// User Profile (Identity Management)
+		$this->loader->add_action( 'show_user_profile', $plugin_admin, 'render_user_profile_identities' );
+		$this->loader->add_action( 'edit_user_profile', $plugin_admin, 'render_user_profile_identities' );
+		$this->loader->add_action( 'admin_post_hwa_admin_unlink_identity', $plugin_admin, 'handle_admin_unlink_identity' );
 
 	}
 
