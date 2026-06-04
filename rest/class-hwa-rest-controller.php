@@ -436,11 +436,10 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		}
 
 		// Fallback to URL parameters if notice doesn't stick
+		// Encode the message in base64 so it can safely pass through the URL and be caught by HWA_Public::handle_url_errors
 		$redirect_url = add_query_arg(
-			array(
-				'hwa_error' => $code,
-				'hwa_msg'   => rawurlencode( $message ),
-			),
+			'hwa_error',
+			base64_encode( $message ),
 			$return_to
 		);
 
