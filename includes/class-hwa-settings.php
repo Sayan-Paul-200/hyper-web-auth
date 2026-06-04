@@ -141,6 +141,7 @@ class HWA_Settings {
 			'firebase_consent_text'               => __( 'By continuing, you agree to receive SMS verification codes. Message and data rates may apply.', 'hyper-web-auth' ),
 			
 			'account_linking_enabled'             => 'no',
+			'audit_log_retention_days'            => '30',
 			'delete_data_on_uninstall'            => 'no',
 			'debug_logging'                       => 'no',
 		);
@@ -424,6 +425,17 @@ class HWA_Settings {
 				'id'      => 'hwa_debug_logging',
 				'type'    => 'checkbox',
 				'default' => 'no',
+			),
+			array(
+				'title'             => __( 'Audit Log Retention (Days)', 'hyper-web-auth' ),
+				'desc'              => __( 'Number of days to keep authentication logs in the database. Set to 0 to keep forever.', 'hyper-web-auth' ),
+				'id'                => 'hwa_audit_log_retention_days',
+				'type'              => 'number',
+				'default'           => '30',
+				'custom_attributes' => array(
+					'min'  => '0',
+					'step' => '1',
+				),
 			),
 			array(
 				'title'   => __( 'Delete Data on Uninstall', 'hyper-web-auth' ),

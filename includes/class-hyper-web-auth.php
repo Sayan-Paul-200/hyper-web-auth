@@ -321,6 +321,9 @@ class Hyper_Web_Auth {
 		// Hook our hourly cleanup event to the state repository
 		$state_repo = new HWA_OAuth_State_Repository();
 		$this->loader->add_action( 'hwa_hourly_cleanup', $state_repo, 'cleanup_expired_states' );
+		
+		// Hook our hourly cleanup event to the database logger to enforce retention policies
+		$this->loader->add_action( 'hwa_hourly_cleanup', 'HWA_Database', 'cleanup_old_logs' );
 	}
 
 	/**

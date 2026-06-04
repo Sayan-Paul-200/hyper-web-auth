@@ -156,4 +156,36 @@ CREATE TABLE {$wpdb->prefix}hwa_auth_logs (
 
 		return $wpdb->insert( $table_name, $data, $format );
 	}
+
+	/**
+	 * Cleans up old authentication logs based on the retention setting.
+	 *
+	 * @since  1.0.0
+	 * @return int The number of rows deleted.
+	 */
+	public static function cleanup_old_logs() {
+		global $wpdb;
+
+		$retention_days = (int) HWA_Settings::get_setting( 'audit_log_retention_days', 30 );
+
+		// If set to 0, it means keep forever.
+		if ( $retention_days <= 0 ) {
+			return 0;
+		}
+
+		$table_name = $wpdb->prefix . 'hwa_auth_logs';
+
+		// Calculate the cutoff date
+		$cutoff_time = current_time( 'timestamp' ) - ( $retention_days * DAY_IN_SECONDS );
+		$cutoff_sql  = gmdate( 'Y-m-d H:i:s', $cutoff_time );
+
+		$query = $wpdb->prepare(
+			"DELETE FROM $table_name WHERE created_at < %s",
+			$cutoff_sql
+		);
+
+		$deleted = $wpdb->query( $query );
+
+		return $deleted !== false ? (int) $deleted : 0;
+	}
 }
