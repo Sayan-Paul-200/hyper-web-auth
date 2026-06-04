@@ -147,6 +147,28 @@ class HWA_REST_Controller extends WP_REST_Controller {
 				'permission_callback' => '__return_true', // Public route
 			)
 		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/link/preflight
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/link/preflight',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_link_preflight' ),
+				'permission_callback' => 'is_user_logged_in', // Must be logged in
+			)
+		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/link/complete
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/link/complete',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_link_complete' ),
+				'permission_callback' => 'is_user_logged_in', // Must be logged in
+			)
+		);
 	}
 
 	/**
@@ -698,6 +720,123 @@ class HWA_REST_Controller extends WP_REST_Controller {
 		return rest_ensure_response( array(
 			'success'      => true,
 			'redirect_url' => $return_to,
+		) );
+	}
+
+	/**
+	 * Preflight check for phone linking.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_link_preflight( $request ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return new WP_Error( 'not_logged_in', __( 'You must be logged in to link a phone number.', 'hyper-web-auth' ), array( 'status' => 401 ) );
+		}
+
+		$phone = $request->get_param( 'phone' );
+		if ( empty( $phone ) ) {
+			return new WP_Error( 'missing_phone', __( 'Phone number is required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+		if ( ! HWA_Security::is_valid_phone( $phone_e164 ) ) {
+			return new WP_Error( 'invalid_phone', __( 'Invalid phone number format.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check rate limits
+		$limit_check = $this->rate_limiter->check_firebase_preflight_limit( $phone_e164, $ip );
+		if ( is_wp_error( $limit_check ) ) {
+			return $limit_check;
+		}
+
+		// Check database identity
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( $identity ) {
+			if ( (int) $identity->user_id === (int) $user_id ) {
+				return new WP_Error( 'phone_already_linked', __( 'This phone number is already linked to your account.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+			} else {
+				return new WP_Error( 'phone_taken', __( 'This phone number is already linked to another account.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+			}
+		}
+
+		// Success. Record attempt and allow frontend to proceed.
+		HWA_Database::log_auth_event( null, 'firebase_phone', 'link_preflight', 'success', $ip, 'Phone link preflight passed: ' . HWA_Security::mask_phone( $phone_e164 ) );
+
+		return rest_ensure_response( array(
+			'success' => true,
+		) );
+	}
+
+	/**
+	 * Completes the phone linking flow.
+	 *
+	 * @since 1.0.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_link_complete( $request ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			return new WP_Error( 'not_logged_in', __( 'You must be logged in to link a phone number.', 'hyper-web-auth' ), array( 'status' => 401 ) );
+		}
+
+		$phone             = $request->get_param( 'phone' );
+		$firebase_id_token = $request->get_param( 'firebase_id_token' );
+		$ip                = HWA_Security::get_client_ip();
+
+		if ( empty( $phone ) || empty( $firebase_id_token ) ) {
+			HWA_Database::log_auth_event( $user_id, 'firebase_phone', 'link_failed', 'failed', $ip, 'Missing phone or token.' );
+			return new WP_Error( 'missing_data', __( 'Missing phone number or verification token.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+
+		$verify_limit = $this->rate_limiter->check_firebase_verification_limit( $phone_e164, $ip );
+		if ( is_wp_error( $verify_limit ) ) {
+			HWA_Database::log_auth_event( $user_id, 'firebase_phone', 'link_failed', 'failed', $ip, 'Verification rate limit exceeded.' );
+			return $verify_limit;
+		}
+
+		$verified_uid = $this->firebase_service->verify_id_token( $firebase_id_token, $phone_e164 );
+
+		if ( is_wp_error( $verified_uid ) ) {
+			$this->rate_limiter->record_verification_failure( $phone_e164, $ip );
+			HWA_Database::log_auth_event( $user_id, 'firebase_phone', 'link_failed', 'failed', $ip, 'Token verification failed: ' . $verified_uid->get_error_message() );
+			return new WP_Error( 'verification_failed', $verified_uid->get_error_message(), array( 'status' => 401 ) );
+		}
+
+		// Token is valid and phone matches!
+		$this->rate_limiter->clear_firebase_verification_failures( $ip );
+
+		// Final check to prevent race conditions
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+		if ( $identity ) {
+			if ( (int) $identity->user_id === (int) $user_id ) {
+				return rest_ensure_response( array(
+					'success' => true,
+					'message' => __( 'Phone already linked.', 'hyper-web-auth' ),
+				) );
+			} else {
+				return new WP_Error( 'phone_taken', __( 'This phone number is already linked to another account.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+			}
+		}
+
+		// Create identity mapping
+		$identity_id = $this->identity_repo->create_firebase_phone_identity( $user_id, $verified_uid, $phone_e164, true );
+
+		if ( ! $identity_id ) {
+			HWA_Database::log_auth_event( $user_id, 'firebase_phone', 'link_failed', 'failed', $ip, 'Failed to insert identity row.' );
+			return new WP_Error( 'internal_error', __( 'Could not link phone to account due to a database error.', 'hyper-web-auth' ), array( 'status' => 500 ) );
+		}
+
+		HWA_Database::log_auth_event( $user_id, 'firebase_phone', 'link_success', 'success', $ip, 'Phone linking complete.' );
+
+		return rest_ensure_response( array(
+			'success'  => true,
 		) );
 	}
 

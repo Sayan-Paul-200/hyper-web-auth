@@ -314,6 +314,117 @@
 						});
 				});
 			}
+			
+			// -------------------------------------------------------------------
+			// LINK FLOW
+			// -------------------------------------------------------------------
+			const $linkContainer = $('#hwa-phone-link-container');
+			if ( $linkContainer.length > 0 ) {
+				// Show form on button click
+				$('#hwa-btn-show-link-phone').on('click', function(e) {
+					e.preventDefault();
+					$linkContainer.removeClass('hwa-hidden');
+					$(this).addClass('hwa-hidden'); // hide the trigger button
+					setupRecaptcha('hwa-recaptcha-link-container', 'hwa-btn-send-link-sms');
+				});
+
+				const $errorDiv = $('#hwa-phone-link-error');
+				const $successDiv = $('#hwa-phone-link-success');
+
+				// Step 1: Preflight and Send SMS
+				$('#hwa-btn-send-link-sms').on('click', function(e) {
+					e.preventDefault();
+					hideError($errorDiv);
+					hideError($successDiv);
+					
+					const phone = normalizePhone( $('#hwa_link_phone').val().trim() );
+					if ( ! phone ) {
+						showError($errorDiv, hwaFirebaseConfig.strings.invalid_phone);
+						return;
+					}
+
+					const $btn = $(this);
+					$btn.prop('disabled', true).text('Loading...');
+
+					$.ajax({
+						url: hwaFirebaseConfig.apiBase + 'link/preflight',
+						method: 'POST',
+						data: {
+							phone: phone,
+							_wpnonce: hwaFirebaseConfig.nonce
+						},
+						success: function(response) {
+							firebase.auth().signInWithPhoneNumber(phone, window.recaptchaVerifier)
+								.then(function(result) {
+									confirmationResult = result;
+									$('#hwa-phone-link-step-1').addClass('hwa-hidden');
+									$('#hwa-phone-link-step-2').removeClass('hwa-hidden');
+								})
+								.catch(function(error) {
+									showError($errorDiv, error.message);
+									$btn.prop('disabled', false).text('Send Code');
+									window.recaptchaVerifier.render(); // Reset recaptcha
+								});
+						},
+						error: function(xhr) {
+							const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+							showError($errorDiv, msg);
+							$btn.prop('disabled', false).text('Send Code');
+						}
+					});
+				});
+
+				// Step 2: Verify OTP and Link
+				$('#hwa-btn-verify-link-otp').on('click', function(e) {
+					e.preventDefault();
+					hideError($errorDiv);
+
+					const otp = $('#hwa_link_otp').val().trim();
+					if ( ! otp || otp.length < 6 ) {
+						showError($errorDiv, 'Please enter a valid code.');
+						return;
+					}
+
+					const $btn = $(this);
+					$btn.prop('disabled', true).text('Verifying...');
+
+					confirmationResult.confirm(otp)
+						.then(function(result) {
+							return result.user.getIdToken();
+						})
+						.then(function(idToken) {
+							const phone = normalizePhone( $('#hwa_link_phone').val().trim() );
+							
+							$.ajax({
+								url: hwaFirebaseConfig.apiBase + 'link/complete',
+								method: 'POST',
+								data: {
+									phone: phone,
+									firebase_id_token: idToken,
+									_wpnonce: hwaFirebaseConfig.nonce
+								},
+								success: function(response) {
+									if ( response.success ) {
+										$successDiv.text('Phone number successfully linked! Reloading...').removeClass('hwa-hidden');
+										$('#hwa-phone-link-step-2').addClass('hwa-hidden');
+										setTimeout(() => {
+											window.location.reload();
+										}, 1500);
+									}
+								},
+								error: function(xhr) {
+									const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+									showError($errorDiv, msg);
+									$btn.prop('disabled', false).text('Verify & Link');
+								}
+							});
+						})
+						.catch(function(error) {
+							showError($errorDiv, 'Invalid verification code. Please try again.');
+							$btn.prop('disabled', false).text('Verify & Link');
+						});
+				});
+			}
 		});
 
 	});

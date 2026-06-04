@@ -78,12 +78,47 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 						<button class="button" disabled><?php esc_html_e( 'Change Phone', 'hyper-web-auth' ); ?></button>
 					<?php else : ?>
 						<!-- Linking phone to be implemented in Phase 3.3 -->
-						<button class="button" disabled><?php esc_html_e( 'Link Phone', 'hyper-web-auth' ); ?></button>
+						<button class="button" id="hwa-btn-show-link-phone"><?php esc_html_e( 'Link Phone', 'hyper-web-auth' ); ?></button>
 					<?php endif; ?>
 				</td>
 			</tr>
 
 		</tbody>
 	</table>
+
+	<!-- Inline Phone Link Form (Hidden by default) -->
+	<div id="hwa-phone-link-container" class="hwa-hidden" style="margin-top: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+		<h4><?php esc_html_e( 'Link a Phone Number', 'hyper-web-auth' ); ?></h4>
+		<p><?php esc_html_e( 'Enter your phone number below to receive a verification code.', 'hyper-web-auth' ); ?></p>
+		
+		<div id="hwa-phone-link-error" class="hwa-error-message hwa-hidden" style="color: #dc2626; margin-bottom: 15px;"></div>
+		<div id="hwa-phone-link-success" class="hwa-success-message hwa-hidden" style="color: #16a34a; margin-bottom: 15px;"></div>
+
+		<!-- Step 1: Phone Input -->
+		<div id="hwa-phone-link-step-1">
+			<p class="form-row form-row-wide">
+				<label for="hwa_link_phone"><?php esc_html_e( 'Phone Number', 'hyper-web-auth' ); ?>&nbsp;<span class="required">*</span></label>
+				<input type="tel" class="woocommerce-Input woocommerce-Input--phone input-text" name="hwa_link_phone" id="hwa_link_phone" autocomplete="tel" placeholder="+1234567890" />
+			</p>
+			
+			<div id="hwa-recaptcha-link-container"></div>
+			
+			<p class="form-row">
+				<button type="button" class="woocommerce-Button button" id="hwa-btn-send-link-sms"><?php esc_html_e( 'Send Code', 'hyper-web-auth' ); ?></button>
+			</p>
+		</div>
+
+		<!-- Step 2: OTP Input -->
+		<div id="hwa-phone-link-step-2" class="hwa-hidden">
+			<p class="form-row form-row-wide">
+				<label for="hwa_link_otp"><?php esc_html_e( 'Verification Code', 'hyper-web-auth' ); ?>&nbsp;<span class="required">*</span></label>
+				<input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="hwa_link_otp" id="hwa_link_otp" autocomplete="one-time-code" placeholder="123456" />
+			</p>
+			
+			<p class="form-row">
+				<button type="button" class="woocommerce-Button button" id="hwa-btn-verify-link-otp"><?php esc_html_e( 'Verify & Link', 'hyper-web-auth' ); ?></button>
+			</p>
+		</div>
+	</div>
 
 </div>
