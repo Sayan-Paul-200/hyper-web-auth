@@ -168,6 +168,7 @@
 								data: {
 									phone: phone,
 									firebase_id_token: idToken,
+									return_to: window.location.href,
 									_wpnonce: hwaFirebaseConfig.nonce
 								},
 								success: function(response) {
@@ -294,6 +295,7 @@
 									first_name: firstName,
 									last_name: lastName,
 									email: email,
+									return_to: window.location.href,
 									_wpnonce: hwaFirebaseConfig.nonce
 								},
 								success: function(response) {
