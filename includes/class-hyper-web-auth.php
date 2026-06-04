@@ -135,6 +135,7 @@ class Hyper_Web_Auth {
 		$this->define_rest_hooks();
 		$this->define_cron_hooks();
 		$this->define_public_hooks();
+		$this->define_my_account_hooks();
 
 	}
 
@@ -226,6 +227,12 @@ class Hyper_Web_Auth {
 		$this->google_service   = new HWA_Google_OAuth_Service( $state_repo );
 		$this->firebase_service = new HWA_Firebase_Auth_Service();
 		$this->customer_service = new HWA_Customer_Service();
+
+		/**
+		 * WooCommerce My Account integrations.
+		 */
+		require_once HYPER_WEB_AUTH_PATH . 'public/class-hwa-my-account.php';
+		$this->my_account = new HWA_My_Account( $this->identity_repo, $this->google_service );
 
 	}
 
@@ -322,6 +329,20 @@ class Hyper_Web_Auth {
 
 		// Handle OAuth error redirects on the frontend
 		$this->loader->add_action( 'template_redirect', $plugin_public, 'handle_url_errors' );
+
+	}
+
+	/**
+	 * Register all of the hooks related to the WooCommerce My Account area.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function define_my_account_hooks() {
+
+		$this->loader->add_action( 'init', $this->my_account, 'add_endpoint' );
+		$this->loader->add_filter( 'woocommerce_account_menu_items', $this->my_account, 'add_menu_item' );
+		$this->loader->add_action( 'woocommerce_account_linked-accounts_endpoint', $this->my_account, 'render_page' );
 
 	}
 

@@ -40,6 +40,10 @@ class Hyper_Web_Auth_Activator {
 			wp_schedule_event( time(), 'hourly', 'hwa_hourly_cleanup' );
 		}
 
+		// Add WooCommerce endpoint and flush rewrite rules so it doesn't 404
+		add_rewrite_endpoint( 'linked-accounts', EP_ROOT | EP_PAGES );
+		flush_rewrite_rules();
+
 	}
 
 }
