@@ -231,4 +231,30 @@ class HWA_Security {
 		return $start . $mask . $end;
 	}
 
+	/**
+	 * Masks an email address for safe logging (e.g., test@example.com -> te**@example.com).
+	 *
+	 * @since 1.0.0
+	 * @param string $email The email address.
+	 * @return string The masked email address.
+	 */
+	public static function mask_email( $email ) {
+		if ( empty( $email ) ) {
+			return '';
+		}
+
+		$parts = explode( '@', $email );
+		if ( count( $parts ) !== 2 ) {
+			return $email;
+		}
+
+		$name   = $parts[0];
+		$domain = $parts[1];
+
+		// Keep first 2 characters, mask the rest of the name
+		$masked_name = substr( $name, 0, 2 ) . str_repeat( '*', max( 0, strlen( $name ) - 2 ) );
+
+		return $masked_name . '@' . $domain;
+	}
+
 }

@@ -41,7 +41,7 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 					<?php if ( $google_identity ) : ?>
 						<span class="hwa-status-linked">
 							<?php esc_html_e( 'Linked', 'hyper-web-auth' ); ?> 
-							(<?php echo esc_html( hwa_mask_email( $google_identity->email ) ); ?>)
+							(<?php echo esc_html( HWA_Security::mask_email( $google_identity->email ) ); ?>)
 						</span>
 					<?php else : ?>
 						<span class="hwa-status-unlinked"><?php esc_html_e( 'Not Linked', 'hyper-web-auth' ); ?></span>
@@ -66,7 +66,7 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 					<?php if ( $phone_identity ) : ?>
 						<span class="hwa-status-linked">
 							<?php esc_html_e( 'Linked', 'hyper-web-auth' ); ?> 
-							(<?php echo esc_html( hwa_mask_phone( $phone_identity->phone_e164 ) ); ?>)
+							(<?php echo esc_html( HWA_Security::mask_phone( $phone_identity->phone_e164 ) ); ?>)
 						</span>
 					<?php else : ?>
 						<span class="hwa-status-unlinked"><?php esc_html_e( 'Not Linked', 'hyper-web-auth' ); ?></span>
@@ -87,35 +87,3 @@ $google_link_url = isset( $google_link_url ) ? $google_link_url : '#';
 	</table>
 
 </div>
-
-<?php
-// Simple helpers for masking to be used in this template.
-// These could be moved to HWA_Security later.
-if ( ! function_exists( 'hwa_mask_email' ) ) {
-	function hwa_mask_email( $email ) {
-		if ( empty( $email ) ) {
-			return '';
-		}
-		$parts = explode( '@', $email );
-		if ( count( $parts ) !== 2 ) {
-			return $email;
-		}
-		$name = $parts[0];
-		$domain = $parts[1];
-		$masked_name = substr( $name, 0, 2 ) . str_repeat( '*', max( 0, strlen( $name ) - 2 ) );
-		return $masked_name . '@' . $domain;
-	}
-}
-
-if ( ! function_exists( 'hwa_mask_phone' ) ) {
-	function hwa_mask_phone( $phone ) {
-		if ( empty( $phone ) ) {
-			return '';
-		}
-		$length = strlen( $phone );
-		if ( $length < 4 ) {
-			return str_repeat( '*', $length );
-		}
-		return str_repeat( '*', $length - 4 ) . substr( $phone, -4 );
-	}
-}
