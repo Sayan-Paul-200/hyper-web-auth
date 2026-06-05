@@ -50,6 +50,12 @@ class HWA_OAuth_State_Repository {
 		// State expires strictly in 10 minutes.
 		$expires_at = gmdate( 'Y-m-d H:i:s', $now + ( 10 * 60 ) );
 
+		// Resolve magic keywords (e.g. 'checkout') to full URLs before sanitization.
+		// esc_url_raw() will strip bare keywords since they lack a protocol scheme.
+		if ( 'checkout' === $return_to && function_exists( 'wc_get_page_permalink' ) ) {
+			$return_to = wc_get_page_permalink( 'checkout' );
+		}
+
 		$data = array(
 			'state_hash' => $state_hash,
 			'provider'   => sanitize_key( $provider ),
