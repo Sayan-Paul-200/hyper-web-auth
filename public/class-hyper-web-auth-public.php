@@ -212,11 +212,17 @@ class Hyper_Web_Auth_Public {
 			'_'       => time(), // Cache-buster: unique per page render to prevent stale 302 redirects
 		), $auth_url );
 
-		// Optionally pass the current URL so we can return them to the exact page they were on.
-		global $wp;
-		if ( ! empty( $wp->request ) ) {
-			$return_to = home_url( $wp->request );
-			$auth_url = add_query_arg( 'return_to', urlencode( $return_to ), $auth_url );
+		// Forward the return_to destination so the user lands back where they started.
+		// Priority: ?return_to query param (from forced checkout redirect) > current page URL.
+		if ( isset( $_GET['return_to'] ) && ! empty( $_GET['return_to'] ) ) {
+			$return_to = sanitize_text_field( wp_unslash( $_GET['return_to'] ) );
+			$auth_url  = add_query_arg( 'return_to', urlencode( $return_to ), $auth_url );
+		} else {
+			global $wp;
+			if ( ! empty( $wp->request ) ) {
+				$return_to = home_url( $wp->request );
+				$auth_url  = add_query_arg( 'return_to', urlencode( $return_to ), $auth_url );
+			}
 		}
 
 		include plugin_dir_path( __FILE__ ) . 'partials/google-button.php';
