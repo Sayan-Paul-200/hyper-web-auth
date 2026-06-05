@@ -105,10 +105,8 @@
    UNIFIED AUTH FORM (Phase 5)
    ========================================================================== */
 
-/* Hide WooCommerce default forms when our unified form is present */
-.u-columns.col2-set, 
-.woocommerce .col-1, 
-.woocommerce .col-2 {
+/* Hide WooCommerce default login/register forms on My Account when our unified form is present */
+.woocommerce-account .u-columns.col2-set {
     display: none !important;
 }
 
