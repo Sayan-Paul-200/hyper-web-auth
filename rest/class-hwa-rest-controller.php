@@ -736,8 +736,6 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			return new WP_Error( 'identity_creation_failed', __( 'Failed to link phone number to new account.', 'hyper-web-auth' ), array( 'status' => 500 ) );
 		}
 
-		$this->identity_repo->add_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164 );
-
 		// Log them in
 		$this->customer_service->login_customer( $user_id );
 
@@ -916,7 +914,11 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			}
 
 			// Link identity
-			$this->identity_repo->add_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164 );
+			$identity_id = $this->identity_repo->create_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164, true );
+
+			if ( ! $identity_id ) {
+				return new WP_Error( 'identity_creation_failed', __( 'Failed to link phone number to new account.', 'hyper-web-auth' ), array( 'status' => 500 ) );
+			}
 
 			// Log them in
 			$this->customer_service->login_customer( $user_id );
