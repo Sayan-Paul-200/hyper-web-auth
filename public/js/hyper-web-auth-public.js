@@ -12,9 +12,10 @@
 		const $loginForm = $('#hwa-phone-login-form');
 		const $registerForm = $('#hwa-phone-register-form');
 		const $linkContainer = $('#hwa-phone-link-container');
+		const $unifiedContainer = $('#hwa-unified-auth-container');
 		const $checkoutBanner = $('.hwa-checkout-login-banner');
 
-		if ( $loginForm.length === 0 && $registerForm.length === 0 && $linkContainer.length === 0 && $checkoutBanner.length === 0 ) {
+		if ( $loginForm.length === 0 && $registerForm.length === 0 && $linkContainer.length === 0 && $unifiedContainer.length === 0 && $checkoutBanner.length === 0 ) {
 			return;
 		}
 
@@ -85,6 +86,246 @@
 					raw = hwaFirebaseConfig.defaultCountryCode + raw;
 				}
 				return raw;
+			}
+
+			// -------------------------------------------------------------------
+			// UNIFIED AUTH FLOW (Phase 5)
+			// -------------------------------------------------------------------
+			if ( $unifiedContainer.length > 0 ) {
+				setupRecaptcha('hwa-unified-recaptcha-container', 'hwa-btn-unified-continue');
+
+				let unifiedFlowType = ''; // 'login' or 'register'
+				let unifiedIdToken = '';
+				let resendTimerInterval = null;
+
+				const $btnContinue = $('#hwa-btn-unified-continue');
+				const $btnVerify = $('#hwa-btn-unified-verify');
+				const $btnCreate = $('#hwa-btn-unified-create');
+				const $btnResend = $('#hwa-resend-otp-btn');
+				const $timerDisplay = $('#hwa-resend-timer');
+
+				// Timer Logic
+				function startResendTimer() {
+					let timeLeft = 60;
+					$btnResend.prop('disabled', true).css('text-decoration', 'none');
+					$timerDisplay.show().text('00:60');
+
+					if ( resendTimerInterval ) clearInterval(resendTimerInterval);
+
+					resendTimerInterval = setInterval(function() {
+						timeLeft--;
+						let seconds = timeLeft < 10 ? '0' + timeLeft : timeLeft;
+						$timerDisplay.text('00:' + seconds);
+
+						if ( timeLeft <= 0 ) {
+							clearInterval(resendTimerInterval);
+							$timerDisplay.hide();
+							$btnResend.prop('disabled', false).css('text-decoration', 'underline');
+						}
+					}, 1000);
+				}
+
+				// Error handling helper specific to unified flow
+				function showUnifiedError(msg) {
+					// Using standard JS alert for simplicity in this flow, or could inject error div
+					alert(msg); 
+				}
+
+				// OTP Input UX (Auto-advance)
+				const $otpInputs = $('.hwa-otp-digit');
+				$otpInputs.on('keydown', function(e) {
+					if ( e.key === 'Backspace' && !$(this).val() ) {
+						$(this).prev('.hwa-otp-digit').focus();
+					}
+				}).on('input', function(e) {
+					// Advance focus
+					if ( $(this).val() ) {
+						$(this).next('.hwa-otp-digit').focus();
+					}
+					// Check if all 6 are filled to auto-submit
+					let fullOtp = '';
+					$otpInputs.each(function() { fullOtp += $(this).val(); });
+					if ( fullOtp.length === 6 ) {
+						$btnVerify.click();
+					}
+				}).on('paste', function(e) {
+					e.preventDefault();
+					let pasteData = (e.originalEvent || e).clipboardData.getData('text').trim();
+					// Extract digits only
+					pasteData = pasteData.replace(/\D/g, '').substring(0, 6);
+					if (pasteData) {
+						$otpInputs.each(function(index) {
+							$(this).val(pasteData[index] || '');
+						});
+						$otpInputs.last().focus();
+						if ( pasteData.length === 6 ) {
+							$btnVerify.click();
+						}
+					}
+				});
+
+				// Step 1: Preflight & Send SMS
+				$btnContinue.on('click', function(e) {
+					e.preventDefault();
+					
+					const phone = normalizePhone( $('#hwa-unified-phone').val().trim() );
+					if ( ! phone ) {
+						showUnifiedError(hwaFirebaseConfig.strings.invalid_phone);
+						return;
+					}
+
+					$btnContinue.prop('disabled', true).text('Loading...');
+
+					// Preflight
+					$.ajax({
+						url: hwaFirebaseConfig.apiBase + 'auth/preflight',
+						method: 'POST',
+						data: { phone: phone, _wpnonce: hwaFirebaseConfig.nonce },
+						success: function(response) {
+							if ( response.success ) {
+								unifiedFlowType = response.flow; // 'login' or 'register'
+
+								firebase.auth().signInWithPhoneNumber(phone, window.recaptchaVerifier)
+									.then(function(result) {
+										confirmationResult = result;
+										// Update UI
+										$('#hwa-masked-phone-display').text(phone.replace(/(\d{3})\d{5}(\d{2})/, '$1XXXXX$2'));
+										$('#hwa-step-1-phone').removeClass('hwa-active');
+										$('#hwa-step-2-otp').addClass('hwa-active');
+										startResendTimer();
+										$otpInputs.first().focus();
+									})
+									.catch(function(error) {
+										showUnifiedError(error.message);
+										$btnContinue.prop('disabled', false).text('CONTINUE');
+										window.recaptchaVerifier.render(); // Reset recaptcha
+									});
+							}
+						},
+						error: function(xhr) {
+							const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+							showUnifiedError(msg);
+							$btnContinue.prop('disabled', false).text('CONTINUE');
+						}
+					});
+				});
+
+				// Step 2: Resend OTP
+				$btnResend.on('click', function(e) {
+					e.preventDefault();
+					const phone = normalizePhone( $('#hwa-unified-phone').val().trim() );
+					
+					$btnResend.prop('disabled', true);
+					firebase.auth().signInWithPhoneNumber(phone, window.recaptchaVerifier)
+						.then(function(result) {
+							confirmationResult = result;
+							startResendTimer();
+						})
+						.catch(function(error) {
+							showUnifiedError(error.message);
+							$btnResend.prop('disabled', false);
+						});
+				});
+
+				// Step 2: Verify & Branch
+				$btnVerify.on('click', function(e) {
+					e.preventDefault();
+					
+					let otp = '';
+					$otpInputs.each(function() { otp += $(this).val(); });
+
+					if ( otp.length < 6 ) {
+						showUnifiedError('Please enter a valid 6-digit code.');
+						return;
+					}
+
+					$btnVerify.prop('disabled', true).text('Verifying...');
+
+					confirmationResult.confirm(otp)
+						.then(function(result) {
+							return result.user.getIdToken();
+						})
+						.then(function(idToken) {
+							unifiedIdToken = idToken;
+							const phone = normalizePhone( $('#hwa-unified-phone').val().trim() );
+
+							if ( unifiedFlowType === 'login' ) {
+								// Fast-track: Login immediately
+								$.ajax({
+									url: hwaFirebaseConfig.apiBase + 'auth/complete',
+									method: 'POST',
+									data: {
+										phone: phone,
+										firebase_id_token: unifiedIdToken,
+										return_to: new URLSearchParams(window.location.search).get('return_to') || window.location.href,
+										_wpnonce: hwaFirebaseConfig.nonce
+									},
+									success: function(response) {
+										if ( response.success && response.redirect_url ) {
+											window.location.href = response.redirect_url;
+										}
+									},
+									error: function(xhr) {
+										const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+										showUnifiedError(msg);
+										$btnVerify.prop('disabled', false).text('VERIFY & PROCEED');
+									}
+								});
+							} else {
+								// Register: Need more info, branch to Step 3
+								$('#hwa-step-2-otp').removeClass('hwa-active');
+								$('#hwa-step-3-profile').addClass('hwa-active');
+								$('#hwa-unified-first-name').focus();
+							}
+						})
+						.catch(function(error) {
+							showUnifiedError('Invalid verification code. Please try again.');
+							$btnVerify.prop('disabled', false).text('VERIFY & PROCEED');
+							$otpInputs.val(''); // Clear inputs on error
+							$otpInputs.first().focus();
+						});
+				});
+
+				// Step 3: Complete Profile (Register only)
+				$btnCreate.on('click', function(e) {
+					e.preventDefault();
+
+					const firstName = $('#hwa-unified-first-name').val().trim();
+					const lastName = $('#hwa-unified-last-name').val().trim();
+					const email = $('#hwa-unified-email').val().trim();
+					const phone = normalizePhone( $('#hwa-unified-phone').val().trim() );
+
+					if ( ! firstName || ! lastName ) {
+						showUnifiedError('First and Last name are required.');
+						return;
+					}
+
+					$btnCreate.prop('disabled', true).text('Creating Account...');
+
+					$.ajax({
+						url: hwaFirebaseConfig.apiBase + 'auth/complete',
+						method: 'POST',
+						data: {
+							phone: phone,
+							firebase_id_token: unifiedIdToken,
+							first_name: firstName,
+							last_name: lastName,
+							email: email,
+							return_to: new URLSearchParams(window.location.search).get('return_to') || window.location.href,
+							_wpnonce: hwaFirebaseConfig.nonce
+						},
+						success: function(response) {
+							if ( response.success && response.redirect_url ) {
+								window.location.href = response.redirect_url;
+							}
+						},
+						error: function(xhr) {
+							const msg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : hwaFirebaseConfig.strings.generic_error;
+							showUnifiedError(msg);
+							$btnCreate.prop('disabled', false).text('CREATE ACCOUNT');
+						}
+					});
+				});
 			}
 
 			// -------------------------------------------------------------------
