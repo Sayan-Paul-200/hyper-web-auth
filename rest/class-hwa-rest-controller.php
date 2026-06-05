@@ -743,7 +743,7 @@ class HWA_REST_Controller extends WP_REST_Controller {
 
 		// Record success
 		$this->rate_limiter->record_firebase_verification_success( $ip );
-		HWA_Database::log_event(
+		HWA_Database::log_auth_event(
 			$user_id,
 			'firebase_phone',
 			'register_success',
@@ -875,7 +875,7 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			$this->customer_service->login_customer( $user->ID );
 
 			$this->rate_limiter->record_firebase_verification_success( $ip );
-			HWA_Database::log_event(
+			HWA_Database::log_auth_event(
 				$user->ID,
 				'firebase_phone',
 				'login_success',
@@ -923,7 +923,7 @@ class HWA_REST_Controller extends WP_REST_Controller {
 
 			// Record success
 			$this->rate_limiter->record_firebase_verification_success( $ip );
-			HWA_Database::log_event(
+			HWA_Database::log_auth_event(
 				$user_id,
 				'firebase_phone',
 				'register_success',
