@@ -365,4 +365,40 @@ class HWA_Identity_Repository {
 		return false !== $result;
 	}
 
+	/**
+	 * Updates the Firebase UID for an existing identity.
+	 * This handles the edge case where a user deletes and recreates their phone number in Firebase.
+	 *
+	 * @since  1.1.0
+	 * @param  int    $identity_id  The ID of the identity row.
+	 * @param  string $firebase_uid The new Firebase UID.
+	 * @return int|false The number of rows updated, or false on error.
+	 */
+	public function update_firebase_uid( $identity_id, $firebase_uid ) {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'hwa_identities';
+		$identity_hash = HWA_Security::hash_identity( $firebase_uid );
+
+		$data = array(
+			'provider_uid'  => $firebase_uid,
+			'identity_hash' => $identity_hash,
+		);
+
+		$where = array(
+			'id' => $identity_id,
+		);
+
+		$format = array(
+			'%s', // provider_uid
+			'%s', // identity_hash
+		);
+
+		$where_format = array(
+			'%d', // id
+		);
+
+		return $wpdb->update( $table_name, $data, $where, $format, $where_format );
+	}
+
 }
