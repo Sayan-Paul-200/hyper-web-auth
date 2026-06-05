@@ -186,6 +186,7 @@ class HWA_Customer_Service {
 	 */
 	public function create_customer_from_phone( $phone_e164, $first_name, $last_name, $email = '' ) {
 		$email = sanitize_email( $email );
+		$user_provided_email = $email; // Preserve the original before placeholder substitution
 
 		// If email is not provided, generate a placeholder
 		if ( empty( $email ) ) {
@@ -200,12 +201,12 @@ class HWA_Customer_Service {
 
 		$password = wp_generate_password( 32, true, true );
 
-		// Derive a human-readable username
+		// Derive a human-readable username from the ORIGINAL user input (not the placeholder)
 		$digits_only = preg_replace( '/[^0-9]/', '', $phone_e164 );
 
-		if ( ! empty( $email ) && strpos( $email, '@' ) !== false ) {
+		if ( ! empty( $user_provided_email ) && strpos( $user_provided_email, '@' ) !== false ) {
 			// Email provided → use the prefix (e.g. "sayanpaul666.ap" from "sayanpaul666.ap@gmail.com")
-			$base_username = sanitize_user( explode( '@', $email )[0], true );
+			$base_username = sanitize_user( explode( '@', $user_provided_email )[0], true );
 		} else {
 			// No email → use "firstnamelastname_first4digits" (e.g. "sayanpaul_5798")
 			$name_part = strtolower( sanitize_user( $first_name . $last_name, true ) );
