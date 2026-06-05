@@ -353,8 +353,8 @@ class Hyper_Web_Auth {
 		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_google_login_button' );
 		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_google_register_button' );
 
-		// WooCommerce Checkout Fast Login Banner
-		$this->loader->add_action( 'woocommerce_before_checkout_form', $plugin_public, 'render_checkout_login_options', 10 );
+		// Forced Checkout Redirect
+		$this->loader->add_action( 'template_redirect', $plugin_public, 'force_checkout_login' );
 
 		// WooCommerce Frontend Hooks for Firebase Phone Forms
 		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_phone_login_form' );

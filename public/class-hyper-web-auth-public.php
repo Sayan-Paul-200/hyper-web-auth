@@ -233,69 +233,32 @@ class Hyper_Web_Auth_Public {
 	}
 
 	/**
-	 * Renders the Fast Checkout login options above the checkout form.
+	 * Intercepts non-logged-in users trying to access checkout with items in cart.
+	 * Redirects them to My Account with a return_to parameter.
 	 *
 	 * @since 1.0.0
 	 */
-	public function render_checkout_login_options() {
-		// Do not show if the user is already logged in.
-		if ( is_user_logged_in() ) {
+	public function force_checkout_login() {
+		// Do not run if WooCommerce functions aren't loaded or user is logged in
+		if ( ! function_exists( 'is_checkout' ) || ! function_exists( 'wc_add_notice' ) || is_user_logged_in() ) {
 			return;
 		}
 
-		// Only show if at least one provider is enabled
-		$google_enabled = HWA_Settings::get_setting( 'google_enabled' ) === 'yes';
-		$phone_enabled  = HWA_Settings::get_setting( 'firebase_phone_enabled' ) === 'yes';
+		// Only intercept if we are on the checkout page (and not the order received endpoint)
+		if ( is_checkout() && ! is_wc_endpoint_url( 'order-received' ) ) {
+			// Only intercept if cart has items
+			if ( WC()->cart && ! WC()->cart->is_empty() ) {
+				// Add a notice explaining the redirect
+				wc_add_notice( __( 'Please log in or create an account to proceed to checkout.', 'hyper-web-auth' ), 'notice' );
 
-		if ( ! $google_enabled && ! $phone_enabled ) {
-			return;
+				// Generate the redirect URL
+				$my_account_url = wc_get_page_permalink( 'myaccount' );
+				$redirect_url   = add_query_arg( 'return_to', 'checkout', $my_account_url );
+
+				wp_safe_redirect( $redirect_url );
+				exit;
+			}
 		}
-
-		echo '<div class="hwa-checkout-login-banner" style="margin-bottom: 2em; padding: 1.5em; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">';
-		echo '<h3 style="margin-top: 0;">' . esc_html__( 'Fast Checkout', 'hyper-web-auth' ) . '</h3>';
-		echo '<p>' . esc_html__( 'Log in with your existing account to use your saved details.', 'hyper-web-auth' ) . '</p>';
-		echo '<div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1em;">';
-		
-		if ( $google_enabled ) {
-			$this->render_google_button( 'login', __( 'Continue with Google', 'hyper-web-auth' ) );
-		}
-
-		if ( $phone_enabled ) {
-			// Instead of rendering the full phone login form directly inline (which is bulky),
-			// we render a toggle button, just like WooCommerce does for standard login.
-			echo '<button type="button" class="button" id="hwa-btn-checkout-show-phone">' . esc_html__( 'Continue with Phone', 'hyper-web-auth' ) . '</button>';
-		}
-		
-		echo '</div>';
-
-		if ( $phone_enabled ) {
-			// Container for the phone login form, hidden by default
-			echo '<div id="hwa-checkout-phone-container" class="hwa-hidden" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #cbd5e1;">';
-			$this->render_phone_login_form();
-			echo '</div>';
-			
-			// Small inline JS to handle the toggle
-			?>
-			<script>
-				document.addEventListener('DOMContentLoaded', function() {
-					var toggleBtn = document.getElementById('hwa-btn-checkout-show-phone');
-					var phoneContainer = document.getElementById('hwa-checkout-phone-container');
-					if (toggleBtn && phoneContainer) {
-						toggleBtn.addEventListener('click', function(e) {
-							e.preventDefault();
-							if (phoneContainer.classList.contains('hwa-hidden')) {
-								phoneContainer.classList.remove('hwa-hidden');
-							} else {
-								phoneContainer.classList.add('hwa-hidden');
-							}
-						});
-					}
-				});
-			</script>
-			<?php
-		}
-
-		echo '</div>';
 	}
 
 }
