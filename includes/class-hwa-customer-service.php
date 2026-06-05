@@ -237,6 +237,11 @@ class HWA_Customer_Service {
 
 		update_user_meta( $user_id, 'billing_first_name', $first );
 		update_user_meta( $user_id, 'billing_last_name', $last );
+		update_user_meta( $user_id, 'billing_phone', $phone_e164 );
+		update_user_meta( $user_id, 'billing_email', $email );
+		update_user_meta( $user_id, 'shipping_first_name', $first );
+		update_user_meta( $user_id, 'shipping_last_name', $last );
+		update_user_meta( $user_id, 'shipping_phone', $phone_e164 );
 
 		return $user_id;
 	}
