@@ -200,11 +200,23 @@ class HWA_Customer_Service {
 
 		$password = wp_generate_password( 32, true, true );
 
-		// Derive username from phone digits
+		// Derive a human-readable username
 		$digits_only = preg_replace( '/[^0-9]/', '', $phone_e164 );
-		$last_6      = substr( $digits_only, -6 );
-		
-		$base_username = sanitize_user( 'user_' . $last_6, true );
+
+		if ( ! empty( $email ) && strpos( $email, '@' ) !== false ) {
+			// Email provided → use the prefix (e.g. "sayanpaul666.ap" from "sayanpaul666.ap@gmail.com")
+			$base_username = sanitize_user( explode( '@', $email )[0], true );
+		} else {
+			// No email → use "firstnamelastname_first4digits" (e.g. "sayanpaul_5798")
+			$name_part = strtolower( sanitize_user( $first_name . $last_name, true ) );
+			$first_4   = substr( $digits_only, -4 );
+			$base_username = ! empty( $name_part ) ? $name_part . '_' . $first_4 : '';
+		}
+
+		// Fallback if derived username is empty
+		if ( empty( $base_username ) ) {
+			$base_username = sanitize_user( 'user_' . substr( $digits_only, -6 ), true );
+		}
 
 		$username = $base_username;
 		$counter  = 1;
