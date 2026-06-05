@@ -186,13 +186,10 @@ class HWA_Customer_Service {
 	 */
 	public function create_customer_from_phone( $phone_e164, $first_name, $last_name, $email = '' ) {
 		$email = sanitize_email( $email );
-		$user_provided_email = $email; // Preserve the original before placeholder substitution
 
-		// If email is not provided, generate a placeholder
+		// Email is required for order confirmations and account recovery
 		if ( empty( $email ) ) {
-			$hash        = substr( hash( 'sha256', $phone_e164 ), 0, 12 );
-			$site_domain = wp_parse_url( home_url(), PHP_URL_HOST );
-			$email       = 'phone.' . $hash . '@' . $site_domain;
+			return new WP_Error( 'missing_email', __( 'Email address is required.', 'hyper-web-auth' ) );
 		} elseif ( ! is_email( $email ) ) {
 			return new WP_Error( 'invalid_email', __( 'Invalid email address.', 'hyper-web-auth' ) );
 		} elseif ( email_exists( $email ) ) {
@@ -201,18 +198,11 @@ class HWA_Customer_Service {
 
 		$password = wp_generate_password( 32, true, true );
 
-		// Derive a human-readable username from the ORIGINAL user input (not the placeholder)
+		// Derive a human-readable username from the user's email
 		$digits_only = preg_replace( '/[^0-9]/', '', $phone_e164 );
 
-		if ( ! empty( $user_provided_email ) && strpos( $user_provided_email, '@' ) !== false ) {
-			// Email provided → use the prefix (e.g. "sayanpaul666.ap" from "sayanpaul666.ap@gmail.com")
-			$base_username = sanitize_user( explode( '@', $user_provided_email )[0], true );
-		} else {
-			// No email → use "firstnamelastname_first4digits" (e.g. "sayanpaul_5798")
-			$name_part = strtolower( sanitize_user( $first_name . $last_name, true ) );
-			$first_4   = substr( $digits_only, -4 );
-			$base_username = ! empty( $name_part ) ? $name_part . '_' . $first_4 : '';
-		}
+		// Email is always provided now — use the prefix (e.g. "sayanpaul666.ap" from "sayanpaul666.ap@gmail.com")
+		$base_username = sanitize_user( explode( '@', $email )[0], true );
 
 		// Fallback if derived username is empty
 		if ( empty( $base_username ) ) {

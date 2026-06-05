@@ -102,11 +102,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 		
 		<p class="form-row form-row-wide" style="margin-bottom: 0.5em;">
 			<label for="hwa-unified-email" class="screen-reader-text"><?php esc_html_e( 'Email address', 'hyper-web-auth' ); ?></label>
-			<input type="email" class="input-text" name="hwa_email" id="hwa-unified-email" placeholder="<?php esc_attr_e( 'Email (optional)', 'hyper-web-auth' ); ?>" autocomplete="email" />
+			<input type="email" class="input-text" name="hwa_email" id="hwa-unified-email" placeholder="<?php esc_attr_e( 'Email Address*', 'hyper-web-auth' ); ?>" autocomplete="email" required />
 		</p>
 		
 		<p style="font-size: 0.8em; color: #64748b; margin-bottom: 1.5em; line-height: 1.3;">
-			<?php esc_html_e( 'Providing your email allows you to easily link your Google account for faster login in the future.', 'hyper-web-auth' ); ?>
+			<?php esc_html_e( 'Your email is required for order confirmations, shipping updates, and account recovery.', 'hyper-web-auth' ); ?>
 		</p>
 		
 		<button type="button" id="hwa-btn-unified-create" class="button hwa-btn-full-width" style="width: 100%;">

@@ -300,6 +300,11 @@
 						return;
 					}
 
+					if ( ! email ) {
+						showUnifiedError('Email address is required.');
+						return;
+					}
+
 					$btnCreate.prop('disabled', true).text('Creating Account...');
 
 					$.ajax({
