@@ -200,6 +200,11 @@ class HWA_Security {
 	 * @return string A safe URL.
 	 */
 	public static function safe_redirect_url( $url, $fallback = '' ) {
+		// Magic keyword support for forced checkout redirect
+		if ( 'checkout' === $url && function_exists( 'wc_get_page_permalink' ) ) {
+			$url = wc_get_page_permalink( 'checkout' );
+		}
+
 		if ( empty( $fallback ) ) {
 			$fallback = home_url();
 		}
