@@ -189,7 +189,7 @@
 									.then(function(result) {
 										confirmationResult = result;
 										// Update UI
-										$('#hwa-masked-phone-display').text(phone.replace(/(\d{3})\d{5}(\d{2})/, '$1XXXXX$2'));
+										$('#hwa-masked-phone-display').text(phone);
 										$('#hwa-step-1-phone').removeClass('hwa-active');
 										$('#hwa-step-2-otp').addClass('hwa-active');
 										startResendTimer();

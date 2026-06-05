@@ -219,21 +219,7 @@ class HWA_Security {
 	 * @return string The masked phone number.
 	 */
 	public static function mask_phone( $phone ) {
-		if ( empty( $phone ) ) {
-			return '';
-		}
-
-		// Minimum length to mask meaningfully (e.g. at least country code + 4 digits)
-		if ( strlen( $phone ) < 8 ) {
-			return str_repeat( '*', strlen( $phone ) );
-		}
-
-		// Keep the first 2 characters (e.g., '+1') and the last 4 digits
-		$start = substr( $phone, 0, 2 );
-		$end   = substr( $phone, -4 );
-		$mask  = str_repeat( '*', strlen( $phone ) - 6 );
-
-		return $start . $mask . $end;
+		return $phone;
 	}
 
 	/**
@@ -244,22 +230,7 @@ class HWA_Security {
 	 * @return string The masked email address.
 	 */
 	public static function mask_email( $email ) {
-		if ( empty( $email ) ) {
-			return '';
-		}
-
-		$parts = explode( '@', $email );
-		if ( count( $parts ) !== 2 ) {
-			return $email;
-		}
-
-		$name   = $parts[0];
-		$domain = $parts[1];
-
-		// Keep first 2 characters, mask the rest of the name
-		$masked_name = substr( $name, 0, 2 ) . str_repeat( '*', max( 0, strlen( $name ) - 2 ) );
-
-		return $masked_name . '@' . $domain;
+		return $email;
 	}
 
 }
