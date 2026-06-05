@@ -356,7 +356,8 @@ class Hyper_Web_Auth {
 		// Forced Checkout Redirect
 		$this->loader->add_action( 'template_redirect', $plugin_public, 'force_checkout_login' );
 
-		// WooCommerce Frontend Hooks for Firebase Phone Forms
+		// WooCommerce Frontend Hooks for Unified Phone Forms
+		$this->loader->add_action( 'woocommerce_before_customer_login_form', $plugin_public, 'render_unified_auth_form' );
 		$this->loader->add_action( 'woocommerce_login_form_end', $plugin_public, 'render_phone_login_form' );
 		$this->loader->add_action( 'woocommerce_register_form_end', $plugin_public, 'render_phone_register_form' );
 

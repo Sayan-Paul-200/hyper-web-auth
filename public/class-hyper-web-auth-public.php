@@ -171,6 +171,24 @@ class Hyper_Web_Auth_Public {
 	}
 
 	/**
+	 * Renders the Unified Multi-Step Auth Form.
+	 * Injects the unified form before the WooCommerce customer login form.
+	 *
+	 * @since 1.1.0
+	 */
+	public function render_unified_auth_form() {
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_enabled' ) ) {
+			return;
+		}
+
+		include plugin_dir_path( __FILE__ ) . 'partials/unified-auth-form.php';
+	}
+
+	/**
 	 * Core logic to render the Google OAuth button.
 	 *
 	 * @since 1.0.0
