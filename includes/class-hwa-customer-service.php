@@ -83,6 +83,16 @@ class HWA_Customer_Service {
 			}
 		}
 
+		$user_data['nickname'] = $username;
+		
+		if ( ! empty( $google_profile['name'] ) ) {
+			$user_data['display_name'] = sanitize_text_field( $google_profile['name'] );
+		} elseif ( ! empty( $user_data['first_name'] ) ) {
+			$user_data['display_name'] = trim( $user_data['first_name'] . ' ' . ( $user_data['last_name'] ?? '' ) );
+		} else {
+			$user_data['display_name'] = $username;
+		}
+
 		wp_update_user( $user_data );
 
 		// WooCommerce syncs billing first/last name with user meta automatically in some cases,
@@ -155,6 +165,73 @@ class HWA_Customer_Service {
 		wp_update_user( $user_data );
 
 		// Also set WooCommerce billing name fields.
+		update_user_meta( $user_id, 'billing_first_name', $first );
+		update_user_meta( $user_id, 'billing_last_name', $last );
+
+		return $user_id;
+	}
+
+	/**
+	 * Creates a new WooCommerce customer with phone number, names, and optional email.
+	 * 
+	 * Used by the unified Phase 5 multi-step registration flow. Generates a secure random
+	 * password and derives a username from the phone number digits.
+	 *
+	 * @since  1.0.0
+	 * @param  string $phone_e164 The normalized phone number.
+	 * @param  string $first_name The customer's first name.
+	 * @param  string $last_name  The customer's last name.
+	 * @param  string $email      Optional. User provided email.
+	 * @return int|WP_Error The newly created user ID, or WP_Error on failure.
+	 */
+	public function create_customer_from_phone( $phone_e164, $first_name, $last_name, $email = '' ) {
+		$email = sanitize_email( $email );
+
+		// If email is not provided, generate a placeholder
+		if ( empty( $email ) ) {
+			$hash        = substr( hash( 'sha256', $phone_e164 ), 0, 12 );
+			$site_domain = wp_parse_url( home_url(), PHP_URL_HOST );
+			$email       = 'phone.' . $hash . '@' . $site_domain;
+		} elseif ( ! is_email( $email ) ) {
+			return new WP_Error( 'invalid_email', __( 'Invalid email address.', 'hyper-web-auth' ) );
+		} elseif ( email_exists( $email ) ) {
+			return new WP_Error( 'email_exists', __( 'An account is already registered with your email address. Please log in.', 'hyper-web-auth' ) );
+		}
+
+		$password = wp_generate_password( 32, true, true );
+
+		// Derive username from phone digits
+		$digits_only = preg_replace( '/[^0-9]/', '', $phone_e164 );
+		$last_6      = substr( $digits_only, -6 );
+		
+		$base_username = sanitize_user( 'user_' . $last_6, true );
+
+		$username = $base_username;
+		$counter  = 1;
+		while ( username_exists( $username ) ) {
+			$username = $base_username . $counter;
+			$counter++;
+		}
+
+		$user_id = wc_create_new_customer( $email, $username, $password );
+
+		if ( is_wp_error( $user_id ) ) {
+			return $user_id;
+		}
+
+		$first        = sanitize_text_field( $first_name );
+		$last         = sanitize_text_field( $last_name );
+		$display_name = trim( $first . ' ' . $last );
+
+		$user_data = array(
+			'ID'           => $user_id,
+			'first_name'   => $first,
+			'last_name'    => $last,
+			'nickname'     => $username,
+			'display_name' => ! empty( $display_name ) ? $display_name : $username,
+		);
+		wp_update_user( $user_data );
+
 		update_user_meta( $user_id, 'billing_first_name', $first );
 		update_user_meta( $user_id, 'billing_last_name', $last );
 

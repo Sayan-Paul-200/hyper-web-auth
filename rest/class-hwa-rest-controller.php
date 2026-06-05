@@ -148,6 +148,30 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			)
 		);
 
+		// --- Unified Phase 5 Routes ---
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/auth/preflight
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/auth/preflight',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_auth_preflight' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
+		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/auth/complete
+		register_rest_route(
+			$this->namespace,
+			'/firebase-phone/auth/complete',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'firebase_phone_auth_complete' ),
+				'permission_callback' => '__return_true', // Public route
+			)
+		);
+
 		// Route: /wp-json/hyper-web-auth/v1/firebase-phone/link/preflight
 		register_rest_route(
 			$this->namespace,
@@ -712,13 +736,14 @@ class HWA_REST_Controller extends WP_REST_Controller {
 			return new WP_Error( 'identity_creation_failed', __( 'Failed to link phone number to new account.', 'hyper-web-auth' ), array( 'status' => 500 ) );
 		}
 
-		// Registration and link successful. Log them in!
-		$this->rate_limiter->clear_firebase_verification_failures( $ip );
-		
-		wp_set_current_user( $user_id );
-		wp_set_auth_cookie( $user_id, true );
+		$this->identity_repo->add_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164 );
 
-		HWA_Database::log_auth_event(
+		// Log them in
+		$this->customer_service->login_customer( $user_id );
+
+		// Record success
+		$this->rate_limiter->record_firebase_verification_success( $ip );
+		HWA_Database::log_event(
 			$user_id,
 			'firebase_phone',
 			'register_success',
@@ -734,7 +759,188 @@ class HWA_REST_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Preflight check for phone linking.
+	 * Unified preflight check for the combined auth form.
+	 * Decides whether the user should follow the login or register flow.
+	 *
+	 * @since 1.1.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_auth_preflight( $request ) {
+		// Check if phone auth is enabled overall
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_enabled' ) ) {
+			return new WP_Error( 'phone_auth_disabled', __( 'Phone authentication is disabled.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+		}
+
+		$phone = $request->get_param( 'phone' );
+		if ( empty( $phone ) ) {
+			return new WP_Error( 'missing_phone', __( 'Phone number is required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+		if ( ! HWA_Security::is_valid_phone( $phone_e164 ) ) {
+			return new WP_Error( 'invalid_phone', __( 'Invalid phone number format.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check rate limits
+		$limit_check = $this->rate_limiter->check_firebase_preflight_limit( $phone_e164, $ip );
+		if ( is_wp_error( $limit_check ) ) {
+			return $limit_check;
+		}
+
+		// Success. Record attempt.
+		$this->rate_limiter->record_firebase_preflight_attempt( $phone_e164, $ip );
+
+		// Check database identity
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( $identity ) {
+			return rest_ensure_response( array(
+				'success' => true,
+				'flow'    => 'login',
+			) );
+		} else {
+			// Ensure registration is allowed before returning register flow
+			if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_registration_enabled' ) ) {
+				return new WP_Error( 'registration_disabled', __( 'Phone registration is disabled. You must have an existing account.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+			}
+			return rest_ensure_response( array(
+				'success' => true,
+				'flow'    => 'register',
+			) );
+		}
+	}
+
+	/**
+	 * Unified completion endpoint for the combined auth form.
+	 * Handles both logging in an existing user or registering a new one.
+	 *
+	 * @since 1.1.0
+	 * @param WP_REST_Request $request
+	 */
+	public function firebase_phone_auth_complete( $request ) {
+		if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_enabled' ) ) {
+			return new WP_Error( 'phone_auth_disabled', __( 'Phone authentication is disabled.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+		}
+
+		$phone             = $request->get_param( 'phone' );
+		$firebase_id_token = $request->get_param( 'firebase_id_token' );
+		$return_to         = $request->get_param( 'return_to' ) ?: wc_get_page_permalink( 'myaccount' );
+		$return_to         = HWA_Security::safe_redirect_url( $return_to );
+
+		if ( empty( $phone ) || empty( $firebase_id_token ) ) {
+			return new WP_Error( 'missing_params', __( 'Phone and token are required.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+		}
+
+		$ip = HWA_Security::get_client_ip();
+
+		// Check IP verification limit
+		$verify_limit = $this->rate_limiter->check_firebase_verification_limit( $ip );
+		if ( is_wp_error( $verify_limit ) ) {
+			return $verify_limit;
+		}
+
+		$phone_e164 = HWA_Security::normalize_phone( $phone );
+
+		try {
+			// Verify token server-side
+			$claims = $this->firebase_service->verify_id_token( $firebase_id_token );
+			
+			$firebase_uid = $this->firebase_service->get_uid_from_verified_token( $claims );
+			$token_phone  = $this->firebase_service->get_phone_from_verified_token( $claims );
+			
+			// Assert phones match
+			$this->firebase_service->assert_phone_matches_expected( $token_phone, $phone_e164 );
+
+		} catch ( \Exception $e ) {
+			$this->rate_limiter->record_firebase_verification_failure( $ip );
+			return new WP_Error( 'verification_failed', $e->getMessage(), array( 'status' => 401 ) );
+		}
+
+		$identity = $this->identity_repo->find_firebase_phone_by_phone( $phone_e164 );
+
+		if ( $identity ) {
+			// === LOGIN FLOW ===
+			if ( $identity->provider_uid !== $firebase_uid ) {
+				// UID mismatch - very rare but possible if user deleted and recreated phone account in Firebase
+				$this->identity_repo->update_firebase_uid( $identity->id, $firebase_uid );
+			}
+
+			$user = get_userdata( $identity->user_id );
+			if ( ! $user ) {
+				return new WP_Error( 'user_not_found', __( 'Linked user account no longer exists.', 'hyper-web-auth' ), array( 'status' => 404 ) );
+			}
+
+			$this->customer_service->login_customer( $user->ID );
+
+			$this->rate_limiter->record_firebase_verification_success( $ip );
+			HWA_Database::log_event(
+				$user->ID,
+				'firebase_phone',
+				'login_success',
+				'success',
+				$ip,
+				'Unified phone login: ' . HWA_Security::mask_phone( $phone_e164 )
+			);
+
+			return rest_ensure_response( array(
+				'success'      => true,
+				'redirect_url' => $return_to,
+			) );
+
+		} else {
+			// === REGISTER FLOW ===
+			if ( 'yes' !== HWA_Settings::get_setting( 'firebase_phone_registration_enabled' ) ) {
+				return new WP_Error( 'registration_disabled', __( 'Phone registration is disabled.', 'hyper-web-auth' ), array( 'status' => 403 ) );
+			}
+
+			// Ensure UID is not somehow linked to another account
+			if ( $this->identity_repo->find_firebase_phone_by_uid( $firebase_uid ) ) {
+				return new WP_Error( 'uid_exists', __( 'Firebase UID is already linked to an account.', 'hyper-web-auth' ), array( 'status' => 409 ) );
+			}
+
+			$first_name = $request->get_param( 'first_name' );
+			$last_name  = $request->get_param( 'last_name' );
+			$email      = $request->get_param( 'email' );
+
+			if ( empty( $first_name ) || empty( $last_name ) ) {
+				return new WP_Error( 'missing_fields', __( 'First name and last name are required for registration.', 'hyper-web-auth' ), array( 'status' => 400 ) );
+			}
+
+			// Create the user
+			$user_id = $this->customer_service->create_customer_from_phone( $phone_e164, $first_name, $last_name, $email );
+
+			if ( is_wp_error( $user_id ) ) {
+				return $user_id; // e.g. email exists
+			}
+
+			// Link identity
+			$this->identity_repo->add_firebase_phone_identity( $user_id, $firebase_uid, $phone_e164 );
+
+			// Log them in
+			$this->customer_service->login_customer( $user_id );
+
+			// Record success
+			$this->rate_limiter->record_firebase_verification_success( $ip );
+			HWA_Database::log_event(
+				$user_id,
+				'firebase_phone',
+				'register_success',
+				'success',
+				$ip,
+				'Unified phone registration: ' . HWA_Security::mask_phone( $phone_e164 )
+			);
+
+			return rest_ensure_response( array(
+				'success'      => true,
+				'redirect_url' => $return_to,
+			) );
+		}
+	}
+
+	/**
+	 * Preflight check for linking a phone number to an existing account..
 	 *
 	 * @since 1.0.0
 	 * @param WP_REST_Request $request
